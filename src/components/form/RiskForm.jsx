@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { computeRiskScore, getRiskLevel } from '../../utils/risk';
 import RiskLevelBadge from '../risk/RiskLevelBadge';
+import CabangDropdown from '../ui/CabangDropdown';
 
 const ORGANIZATION_OPTIONS = [
   'Corporate',
@@ -10,16 +11,16 @@ const ORGANIZATION_OPTIONS = [
 ];
 
 const DIVISION_OPTIONS = [
-  'Internal Audit Group Head (UA)',
-  'Quality Assurance Group Head (UQ)',
-  'Corporate Secretary and General Affair Group (US)',
-  'Planning & Performance Group Head (UP)',
-  'Legal Group Head (UL)',
-  'Human Capital Management Group Head (HM)',
-  'Human Capital Support & Industrial Relation (HC)',
-  'Procurement Group Head (HB)',
-  'Training Development Group Head (HT)',
-  'Accounting, Tax & Asset Management Group (KF)',
+  'Internal Audit Group Head',
+  'Quality Assurance Group Head',
+  'Corporate Secretary and General Affair Group',
+  'Planning & Performance Group Head',
+  'Legal Group Head',
+  'Human Capital Management Group Head',
+  'Human Capital Support & Industrial Relation',
+  'Procurement Group Head',
+  'Training Development Group Head',
+  'Accounting, Tax & Asset Management Group',
 ];
 
 const CATEGORY_OPTIONS = [
@@ -44,14 +45,7 @@ const RISK_TYPE_OPTIONS = [
   'Technology',
 ];
 
-const REGION_OPTIONS = [
-  { code: 'ID', label: 'Indonesia (ID)' },
-  { code: 'US', label: 'United States (US)' },
-  { code: 'GB', label: 'United Kingdom (GB)' },
-  { code: 'JP', label: 'Japan (JP)' },
-  { code: 'AU', label: 'Australia (AU)' },
-  { code: 'SG', label: 'Singapore (SG)' },
-];
+// Cabang options are now handled by CabangDropdown component
 
 const POSSIBILITY_LABELS = {
   1: 'Sangat Jarang Terjadi',
@@ -86,7 +80,7 @@ export default function RiskForm({
   const [riskCause, setRiskCause] = useState(initial.riskCause || '');
   const [quantitativeRiskImpact, setQuantitativeRiskImpact] = useState(initial.quantitativeRiskImpact || '');
   const [riskImpactExplanation, setRiskImpactExplanation] = useState(initial.riskImpactExplanation || '');
-  const [regionCode, setRegionCode] = useState(initial.regionCode || 'ID');
+  const [regionCode, setRegionCode] = useState(initial.regionCode || 'KPS');
   const [possibility, setPossibility] = useState(initial.possibility || initial.possibilityType || initial.likelihood || 3);
   const [impact, setImpact] = useState(initial.impactLevel || initial.impact || 4);
   const [mitigation, setMitigation] = useState(initial.mitigation || '');
@@ -260,11 +254,11 @@ export default function RiskForm({
       {simplified && (
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Region/Cabang</label>
-          <select className={inputBase} value={regionCode} onChange={(e) => setRegionCode(e.target.value)}>
-            {REGION_OPTIONS.map((r) => (
-              <option key={r.code} value={r.code}>{r.label}</option>
-            ))}
-          </select>
+          <CabangDropdown
+            value={regionCode}
+            onChange={setRegionCode}
+            openUpward={true}
+          />
         </div>
       )}
 
@@ -272,12 +266,11 @@ export default function RiskForm({
       {!simplified && (
         <>
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Region</label>
-            <select className={inputBase} value={regionCode} onChange={(e) => setRegionCode(e.target.value)}>
-              {REGION_OPTIONS.map((r) => (
-                <option key={r.code} value={r.code}>{r.label}</option>
-              ))}
-            </select>
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Region/Cabang</label>
+            <CabangDropdown
+              value={regionCode}
+              onChange={setRegionCode}
+            />
           </div>
 
           <div className={compact ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'}>

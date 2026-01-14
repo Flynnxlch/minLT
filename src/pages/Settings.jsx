@@ -1,17 +1,26 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ContentHeader from '../components/ui/ContentHeader';
 import { Card } from '../components/widgets';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import LogoutConfirmModal from '../components/ui/LogoutConfirmModal';
+import UserIcon from '../components/ui/UserIcon';
 
 export default function Settings() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+    setShowLogoutConfirm(false);
+  };
+
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
   };
 
   return (
@@ -59,11 +68,9 @@ export default function Settings() {
           <div className="space-y-4">
             {user && (
               <div className="flex items-center gap-4">
-                <img
-                  src={user.avatar || '/src/assets/img/user2-160x160.jpg'}
-                  alt={user.name}
-                  className="w-16 h-16 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
-                />
+                <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 border-gray-200 dark:border-gray-600">
+                  <UserIcon className="w-10 h-10 text-gray-600 dark:text-gray-300" fill="currentColor" />
+                </div>
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{user.name}</h4>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
@@ -77,7 +84,7 @@ export default function Settings() {
         <Card title="Actions" collapsible>
           <div className="space-y-3">
             <button
-              onClick={handleLogout}
+              onClick={handleLogoutClick}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             >
               <i className="bi bi-box-arrow-right"></i>
@@ -86,6 +93,12 @@ export default function Settings() {
           </div>
         </Card>
       </div>
+
+      <LogoutConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+      />
     </>
   );
 }

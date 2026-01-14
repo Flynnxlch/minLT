@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Card } from '../widgets';
 
+// Helper function to truncate text
+function truncateText(value, maxChars) {
+  const s = String(value ?? '');
+  if (!maxChars || maxChars <= 0) return s;
+  if (s.length <= maxChars) return s;
+  return `${s.slice(0, maxChars)}...`;
+}
+
 const STORAGE_KEY = 'minlt:other-requests';
 
 const SAMPLE_OTHER_REQUESTS = [
@@ -107,7 +115,9 @@ export default function OtherRequest({ onApprove, onReject }) {
                   </td>
                   <td className="py-3 px-4">
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">{request.name}</div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white" title={request.name}>
+                        {truncateText(request.name, 20)}
+                      </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">{request.email}</div>
                     </div>
                   </td>

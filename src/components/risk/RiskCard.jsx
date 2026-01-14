@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { getRiskLevel } from '../../utils/risk';
 import { getRiskStatus, RISK_STATUS_CONFIG } from '../../utils/riskStatus';
 import RiskLevelBadge from './RiskLevelBadge';
 import RiskScoreBar from './RiskScoreBar';
@@ -18,7 +19,6 @@ function truncateText(value, maxChars) {
  * @param {boolean} showScoreBar - Show risk score bar (default: false)
  * @param {boolean} showRemoveButton - Show remove button (default: false)
  * @param {boolean} showEvaluateButton - Show evaluate button for risks without mitigation (default: false)
- * @param {boolean} showLocation - Show location and region (default: true)
  * @param {boolean} showEvaluationMonth - Show evaluation month (default: true)
  * @param {boolean} showMitigation - Show mitigation text (default: false)
  * @param {number} mitigationLineClamp - Number of lines to clamp mitigation text (default: 0 = no clamp)
@@ -33,7 +33,6 @@ export default function RiskCard({
   showScoreBar = false,
   showRemoveButton = false,
   showEvaluateButton = false,
-  showLocation = true,
   showEvaluationMonth = true,
   showMitigation = false,
   mitigationLineClamp = 0,
@@ -85,17 +84,17 @@ export default function RiskCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          {/* Header: Organization */}
-          {risk.organization && (
+          {/* Header: Organization | Cabang */}
+          {(risk.organization || risk.regionCode) && (
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="text-xs text-gray-500 dark:text-gray-400">{risk.organization}</span>
-              {showLocation && risk.location && (
-                <>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {risk.location} {risk.regionCode && `(${risk.regionCode})`}
-                  </span>
-                </>
+              {risk.organization && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">{risk.organization}</span>
+              )}
+              {risk.organization && risk.regionCode && (
+                <span className="text-xs text-gray-400 dark:text-gray-500">|</span>
+              )}
+              {risk.regionCode && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">{risk.regionCode}</span>
               )}
             </div>
           )}
@@ -119,6 +118,22 @@ export default function RiskCard({
                 Category: <span className="font-semibold text-gray-700 dark:text-gray-200">{risk.category || risk.riskCategory}</span>
               </div>
             )}
+            {/* Risk Level - only show if score > 0 and status is not open-risk */}
+            {(() => {
+              // Don't show if status is open-risk or score is 0 or falsy
+              if (riskStatus === 'open-risk' || !risk.score || risk.score <= 0) {
+                return null;
+              }
+              const riskLevel = getRiskLevel(risk.score);
+              return riskLevel ? (
+                <div>
+                  Risk Level: <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${riskLevel.badgeClass}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${riskLevel.dotClass}`} />
+                    <span>{riskLevel.label}</span>
+                  </span>
+                </div>
+              ) : null;
+            })()}
             
             {showEvaluationMonth && risk.evaluationMonth && (
               <div>
@@ -138,7 +153,7 @@ export default function RiskCard({
 
         {/* Right side: Badge, Score Bar, Remove Button, Evaluate Button */}
         <div className="flex flex-col items-end gap-2 shrink-0">
-          {showRiskLevel && <RiskLevelBadge score={risk.score} />}
+          {showRiskLevel && risk.score && risk.score > 0 && riskStatus !== 'open-risk' && <RiskLevelBadge score={risk.score} />}
           {showScoreBar && <RiskScoreBar score={risk.score} className="w-24" />}
           {showRemoveButton && onRemove && (
             <button

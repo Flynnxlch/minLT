@@ -2,6 +2,7 @@ import { useState } from 'react';
 import ContentHeader from '../components/ui/ContentHeader';
 import { Card } from '../components/widgets';
 import { useAuth } from '../context/AuthContext';
+import UserIcon from '../components/ui/UserIcon';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -10,7 +11,7 @@ export default function Profile() {
     name: user?.name || '',
     password: '',
     confirmPassword: '',
-    profilePicture: user?.avatar || '/src/assets/img/user2-160x160.jpg',
+    profilePicture: user?.avatar || null,
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -92,11 +93,17 @@ export default function Profile() {
       <Card title="User Profile" collapsible>
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
           <div className="relative shrink-0">
-            <img
-              src={user?.avatar || '/src/assets/img/user2-160x160.jpg'}
-              alt={user?.name}
-              className="w-24 h-24 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600"
-            />
+            {formData.profilePicture ? (
+              <img
+                src={formData.profilePicture}
+                alt={user?.name}
+                className="w-24 h-24 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-4 border-gray-200 dark:border-gray-600">
+                <UserIcon className="w-14 h-14 text-gray-600 dark:text-gray-300" fill="currentColor" />
+              </div>
+            )}
           </div>
           <div className="flex-1 text-center sm:text-left">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{user?.name}</h3>
@@ -144,11 +151,17 @@ export default function Profile() {
                     Profile Picture
                   </label>
                   <div className="flex flex-col sm:flex-row items-center gap-4">
-                    <img
-                      src={formData.profilePicture}
-                      alt="Profile"
-                      className="w-20 h-20 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600 shrink-0"
-                    />
+                    {formData.profilePicture ? (
+                      <img
+                        src={formData.profilePicture}
+                        alt="Profile"
+                        className="w-20 h-20 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 shrink-0">
+                        <UserIcon className="w-12 h-12 text-gray-600 dark:text-gray-300" fill="currentColor" />
+                      </div>
+                    )}
                     <div className="w-full sm:w-auto text-center sm:text-left">
                       <input
                         type="file"

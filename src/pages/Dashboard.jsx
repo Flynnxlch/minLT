@@ -109,14 +109,8 @@ export default function Dashboard() {
 
         <div className="space-y-4">
           <UserList />
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-6">
-              <UserRequest />
-            </div>
-            <div className="lg:col-span-6">
-              <OtherRequest />
-            </div>
-          </div>
+          <UserRequest />
+          <OtherRequest />
         </div>
       </>
     );

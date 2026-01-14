@@ -11,7 +11,7 @@ const defaultUser = {
   email: 'admin@adminlte.io',
   role: 'Web Developer',
   memberSince: 'Nov. 2023',
-  avatar: '/src/assets/img/user2-160x160.jpg',
+  avatar: null,
 };
 
 function hydrate() {

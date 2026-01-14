@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Card } from '../widgets';
 
+// Helper function to truncate text
+function truncateText(value, maxChars) {
+  const s = String(value ?? '');
+  if (!maxChars || maxChars <= 0) return s;
+  if (s.length <= maxChars) return s;
+  return `${s.slice(0, maxChars)}...`;
+}
+
 function formatDate(dateString) {
   const date = new Date(dateString);
   return new Intl.DateTimeFormat('en-GB', {
@@ -74,7 +82,9 @@ export default function UserRequest({ onApprove, onReject }) {
                   key={request.id}
                   className="border-b border-gray-100 dark:border-[var(--color-card-border-dark)] hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                 >
-                  <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">{request.name}</td>
+                  <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white" title={request.name}>
+                    {truncateText(request.name, 20)}
+                  </td>
                   <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300">{request.email}</td>
                   <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300">{request.cabang}</td>
                   <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300">{request.nip}</td>
