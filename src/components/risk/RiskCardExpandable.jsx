@@ -4,6 +4,7 @@ import { getRiskLevel } from '../../utils/risk';
 import { getRiskStatus, RISK_STATUS_CONFIG } from '../../utils/riskStatus';
 import RiskLevelBadge from './RiskLevelBadge';
 import RiskScoreBar from './RiskScoreBar';
+import DeleteConfirmModal from '../ui/DeleteConfirmModal';
 
 function truncateText(value, maxChars) {
   const s = String(value ?? '');
@@ -30,6 +31,7 @@ export default function RiskCardExpandable({
   className = '',
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const navigate = useNavigate();
 
   if (!risk) return null;
@@ -138,7 +140,7 @@ export default function RiskCardExpandable({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onRemove(risk.id);
+                  setShowDeleteConfirm(true);
                 }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#dc3545] rounded-lg hover:bg-[#bb2d3b] transition-colors shadow-sm"
                 title="Remove Risk"
@@ -325,6 +327,21 @@ export default function RiskCardExpandable({
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => {
+          if (onRemove) {
+            onRemove(risk.id);
+          }
+          setShowDeleteConfirm(false);
+        }}
+        title="Delete Risk"
+        itemName={risk.riskEvent || risk.title || 'this risk'}
+        message={`Are you sure you want to delete "${risk.riskEvent || risk.title || 'this risk'}"? This action cannot be undone.`}
+      />
     </div>
   );
 }

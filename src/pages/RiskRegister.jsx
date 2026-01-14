@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import ContentHeader from '../components/ui/ContentHeader';
-import { Card } from '../components/widgets';
 import RiskCardExpandable from '../components/risk/RiskCardExpandable';
+import ContentHeader from '../components/ui/ContentHeader';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { Card } from '../components/widgets';
 import { useRisks } from '../context/RiskContext';
 import { RISK_LEVELS, getRiskLevel, sortRisksByScoreDesc } from '../utils/risk';
 
@@ -10,18 +11,14 @@ export default function RiskRegister() {
   const { risks, removeRisk } = useRisks();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState('');
-  const [levelKey, setLevelKey] = useState('all');
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
+  // Get levelKey from URL params, default to 'all'
+  const levelKey = useMemo(() => {
     const lvl = searchParams.get('level');
-    if (!lvl) return;
-    if (lvl === 'all') {
-      setLevelKey('all');
-      return;
-    }
-    if (RISK_LEVELS.some((x) => x.key === lvl)) {
-      setLevelKey(lvl);
-    }
+    if (!lvl || lvl === 'all') return 'all';
+    if (RISK_LEVELS.some((x) => x.key === lvl)) return lvl;
+    return 'all';
   }, [searchParams]);
 
   const filtered = useMemo(() => {
@@ -38,13 +35,21 @@ export default function RiskRegister() {
     });
   }, [risks, query, levelKey]);
 
+  const handleRemoveRisk = async (riskId) => {
+    setIsLoading(true);
+    // Simulate async operation with delay
+    await new Promise((resolve) => setTimeout(resolve, 280));
+    removeRisk(riskId);
+    setIsLoading(false);
+  };
+
   const inputBase =
     'w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700/50 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors';
 
   return (
     <>
       <ContentHeader
-        title="Risk Register"
+        title="Risk"
         breadcrumbs={[
           { label: 'Home', path: '/' },
           { label: 'Risk Register' },
@@ -81,7 +86,6 @@ export default function RiskRegister() {
               value={levelKey}
               onChange={(e) => {
                 const next = e.target.value;
-                setLevelKey(next);
                 if (next === 'all') {
                   searchParams.delete('level');
                   setSearchParams(searchParams, { replace: true });
@@ -100,28 +104,30 @@ export default function RiskRegister() {
           </div>
         </div>
 
-        <div className="space-y-3">
-          {filtered.map((r) => (
-            <RiskCardExpandable
-              key={r.id}
-              risk={r}
-              showRiskLevel={true}
-              showScoreBar={true}
-              showRemoveButton={true}
-              showEvaluateButton={true}
-              showLocation={true}
-              showEvaluationMonth={true}
-              clickable={true}
-              onRemove={removeRisk}
-            />
-          ))}
+        <LoadingSpinner isLoading={isLoading} delay={250} overlay={true}>
+          <div className="space-y-3">
+            {filtered.map((r) => (
+              <RiskCardExpandable
+                key={r.id}
+                risk={r}
+                showRiskLevel={true}
+                showScoreBar={true}
+                showRemoveButton={true}
+                showEvaluateButton={true}
+                showLocation={true}
+                showEvaluationMonth={true}
+                clickable={true}
+                onRemove={handleRemoveRisk}
+              />
+            ))}
 
-          {!filtered.length && (
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              No risks found. <Link className="text-blue-600 dark:text-blue-400 hover:underline transition-colors" to="/risks/new">Create a new risk</Link>.
-            </div>
-          )}
-        </div>
+            {!filtered.length && (
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                No risks found. <Link className="text-blue-600 dark:text-blue-400 hover:underline transition-colors" to="/risks/new">Create a new risk</Link>.
+              </div>
+            )}
+          </div>
+        </LoadingSpinner>
       </Card>
     </>
   );
