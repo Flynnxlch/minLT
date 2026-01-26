@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CabangDropdown from '../components/ui/CabangDropdown';
+import ErrorModal from '../components/ui/ErrorModal';
 import { useAuth } from '../context/AuthContext';
 
 // Import images
@@ -16,9 +17,12 @@ export default function Login() {
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [deviceWarning, setDeviceWarning] = useState(null);
   
   // Register form state
   const [formData, setFormData] = useState({
@@ -56,14 +60,24 @@ export default function Login() {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setDeviceWarning(null);
     setIsLoading(true);
 
-    const result = await login(email, password);
+    const result = await login(email, password, rememberMe);
 
     if (result.success) {
+      // Check for device warning
+      if (result.warning) {
+        setDeviceWarning({
+          message: result.warning,
+          deviceCount: result.deviceCount,
+        });
+      }
       navigate('/');
     } else {
-      setError(result.error || 'Invalid email or password');
+      const errorMessage = result.error || 'Invalid email or password';
+      setError(errorMessage);
+      setShowErrorModal(true);
     }
 
     setIsLoading(false);
@@ -81,33 +95,33 @@ export default function Login() {
     const newErrors = {};
 
     if (!formData.nama.trim()) {
-      newErrors.nama = 'Nama is required';
+      newErrors.nama = 'Nama wajib diisi';
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = 'Email wajib diisi';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
+      newErrors.email = 'Format email tidak valid';
     }
 
     if (!formData.cabang) {
-      newErrors.cabang = 'Cabang is required';
+      newErrors.cabang = 'Cabang wajib diisi';
     }
 
     if (!formData.nip.trim()) {
-      newErrors.nip = 'NIP is required';
+      newErrors.nip = 'NIP wajib diisi';
     }
 
     if (!formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = 'Kata sandi wajib diisi';
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = 'Kata sandi minimal 6 karakter';
     }
 
     if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
+      newErrors.confirmPassword = 'Silakan konfirmasi kata sandi Anda';
     } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = 'Kata sandi tidak cocok';
     }
 
     setRegisterErrors(newErrors);
@@ -117,27 +131,62 @@ export default function Login() {
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
 
+    // Prevent double submission
+    if (isLoading) {
+      return;
+    }
+
     if (!validateRegister()) {
       return;
     }
 
     setIsLoading(true);
+    setRegisterErrors({});
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const { API_ENDPOINTS } = await import('../config/api');
+      
+      const response = await fetch(API_ENDPOINTS.auth.register, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.nama,
+          email: formData.email,
+          cabang: formData.cabang,
+          nip: formData.nip,
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+        }),
+      });
 
-    // Store registration request
-    const registrationRequest = {
-      ...formData,
-      requestedAt: new Date().toISOString(),
-      status: 'pending',
-    };
-    const existingRequests = JSON.parse(localStorage.getItem('minlt:registration-requests') || '[]');
-    existingRequests.push(registrationRequest);
-    localStorage.setItem('minlt:registration-requests', JSON.stringify(existingRequests));
+      const data = await response.json();
 
-    setIsLoading(false);
-    setShowSuccessPopup(true);
+      if (!response.ok) {
+        setRegisterErrors({ submit: data.error || 'Registration failed. Please try again.' });
+        setIsLoading(false);
+        return;
+      }
+
+      // Success - show popup
+      setShowSuccessPopup(true);
+      
+      // Reset form
+      setFormData({
+        nama: '',
+        email: '',
+        cabang: 'KPS',
+        nip: '',
+        password: '',
+        confirmPassword: '',
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      setRegisterErrors({ submit: error.message || 'Gagal mengirim registrasi. Silakan coba lagi.' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleClosePopup = () => {
@@ -159,12 +208,12 @@ export default function Login() {
     setForgotPasswordError('');
 
     if (!forgotPasswordEmail.trim()) {
-      setForgotPasswordError('Email address is required');
+      setForgotPasswordError('Alamat email wajib diisi');
       return;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotPasswordEmail)) {
-      setForgotPasswordError('Invalid email format');
+      setForgotPasswordError('Format email tidak valid');
       return;
     }
 
@@ -252,10 +301,10 @@ export default function Login() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                {isRegisterMode ? 'Create Account' : 'Welcome back'}
+                {isRegisterMode ? 'Buat Akun' : 'Selamat datang kembali'}
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {isRegisterMode ? 'Sign up to get started' : 'Please enter your details to access your account.'}
+                {isRegisterMode ? 'Daftar untuk memulai' : 'Silakan masukkan detail Anda untuk mengakses akun Anda.'}
               </p>
             </div>
 
@@ -282,7 +331,7 @@ export default function Login() {
                   {/* Email Input */}
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Email Address
+                      Alamat Email
                     </label>
                     <div className="relative">
                       <input
@@ -304,7 +353,7 @@ export default function Login() {
                   {/* Password Input */}
                   <div>
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Password
+                      Kata Sandi
                     </label>
                     <div className="relative">
                       <input
@@ -332,9 +381,11 @@ export default function Login() {
                     <label className="flex items-center cursor-pointer">
                       <input
                         type="checkbox"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
                         className="w-4 h-4 text-[#0c9361] border-gray-300 dark:border-gray-600 rounded focus:ring-[#0c9361] cursor-pointer"
                       />
-                      <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Remember for 30 days</span>
+                      <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Ingat selama 7 hari</span>
                     </label>
                     <a
                       href="#"
@@ -344,9 +395,22 @@ export default function Login() {
                         setShowForgotPasswordModal(true);
                       }}
                     >
-                      Forgot password?
+                      Lupa kata sandi?
                     </a>
                   </div>
+
+                  {/* Device Warning Alert */}
+                  {deviceWarning && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-4">
+                      <div className="flex items-start gap-2">
+                        <i className="bi bi-exclamation-triangle-fill text-yellow-600 dark:text-yellow-400 text-lg mt-0.5"></i>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">Peringatan Keamanan</p>
+                          <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">{deviceWarning.message}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Submit Button */}
                   <button
@@ -357,11 +421,11 @@ export default function Login() {
                     {isLoading ? (
                       <>
                         <i className="bi bi-arrow-repeat animate-spin"></i>
-                        <span>Signing in...</span>
+                        <span>Masuk...</span>
                       </>
                     ) : (
                       <>
-                        <span>Sign in</span>
+                        <span>Masuk</span>
                         <i className="bi bi-arrow-right"></i>
                       </>
                     )}
@@ -391,7 +455,7 @@ export default function Login() {
                         value={formData.nama}
                         onChange={handleRegisterChange}
                         className={`${inputBase} ${registerErrors.nama ? 'border-red-500 dark:border-red-500' : 'border-gray-200 dark:border-gray-600'} box-border`}
-                        placeholder="Enter your name"
+                        placeholder="Masukkan nama Anda"
                         required
                       />
                       <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -430,7 +494,7 @@ export default function Login() {
                       Cabang
                     </label>
                     <CabangDropdown
-                      value={formData.cabang}
+                        value={formData.cabang}
                       onChange={(value) => {
                         setFormData((prev) => ({ ...prev, cabang: value }));
                         if (registerErrors.cabang) {
@@ -495,7 +559,7 @@ export default function Login() {
                   {/* Confirm Password Input */}
                   <div>
                     <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Confirm Password
+                      Konfirmasi Kata Sandi
                     </label>
                     <div className="relative">
                       <input
@@ -519,6 +583,16 @@ export default function Login() {
                     {registerErrors.confirmPassword && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{registerErrors.confirmPassword}</p>}
                   </div>
 
+                  {/* Error Message */}
+                  {registerErrors.submit && (
+                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <i className="bi bi-exclamation-circle text-red-500 dark:text-red-400"></i>
+                        <span className="text-sm text-red-700 dark:text-red-300">{registerErrors.submit}</span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Submit Button */}
                   <button
                     type="submit"
@@ -528,11 +602,11 @@ export default function Login() {
                     {isLoading ? (
                       <>
                         <i className="bi bi-arrow-repeat animate-spin"></i>
-                        <span>Submitting...</span>
+                        <span>Mengirim...</span>
                       </>
                     ) : (
                       <>
-                        <span>Submit</span>
+                        <span>Kirim</span>
                         <i className="bi bi-check-circle"></i>
                       </>
                     )}
@@ -546,24 +620,24 @@ export default function Login() {
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {isRegisterMode ? (
                   <>
-                    Already have an account?{' '}
+                    Sudah punya akun?{' '}
                     <button
                       type="button"
                       onClick={toggleMode}
                       className="text-[#0c9361] dark:text-[#0c9361] hover:underline font-medium"
                     >
-                      Sign In
+                      Masuk
                     </button>
                   </>
                 ) : (
                   <>
-                    Don't have an account?{' '}
+                    Belum punya akun?{' '}
                     <button
                       type="button"
                       onClick={toggleMode}
                       className="text-[#0c9361] dark:text-[#0c9361] hover:underline font-medium"
                     >
-                      Sign up
+                      Daftar
                     </button>
                   </>
                 )}
@@ -586,7 +660,7 @@ export default function Login() {
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
                   <i className="bi bi-check-circle text-green-600 dark:text-green-400 text-3xl"></i>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Registration Submitted</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Registrasi Dikirim</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
                   Terima kasih sudah melakukan registrasi, Mohon tunggu persetujuan pembuatan akun.
                 </p>
@@ -595,7 +669,7 @@ export default function Login() {
                   onClick={handleClosePopup}
                   className="w-full px-4 py-2 bg-[#0c9361] hover:bg-[#0a7a4f] text-white font-semibold rounded-lg transition-colors"
                 >
-                  OK
+                  Oke
                 </button>
               </div>
             </div>
@@ -632,12 +706,12 @@ export default function Login() {
 
                 {/* Title */}
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-2">
-                  Forgot your password?
+                  Lupa kata sandi Anda?
                 </h2>
 
                 {/* Description */}
                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-6">
-                  Don't worry, it happens. Please enter the email address associated with your account.
+                  Jangan khawatir, hal ini bisa terjadi. Silakan masukkan alamat email yang terkait dengan akun Anda.
                 </p>
 
                 {/* Form */}
@@ -645,7 +719,7 @@ export default function Login() {
                   {/* Email Input */}
                   <div>
                     <label htmlFor="forgot-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Email Address
+                      Alamat Email
                     </label>
                     <div className="relative">
                       <input
@@ -681,11 +755,11 @@ export default function Login() {
                     {isLoading ? (
                       <>
                         <i className="bi bi-arrow-repeat animate-spin"></i>
-                        <span>Sending...</span>
+                        <span>Mengirim...</span>
                       </>
                     ) : (
                       <>
-                        <span>Send Reset Link</span>
+                        <span>Kirim Tautan Reset</span>
                         <i className="bi bi-arrow-right"></i>
                       </>
                     )}
@@ -703,7 +777,7 @@ export default function Login() {
                     }}
                   >
                     <i className="bi bi-arrow-left"></i>
-                    <span>Back to Login</span>
+                    <span>Kembali ke Masuk</span>
                   </a>
                 </div>
               </div>
@@ -725,22 +799,31 @@ export default function Login() {
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
                   <i className="bi bi-check-circle text-green-600 dark:text-green-400 text-3xl"></i>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Password Reset Request Submitted</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Permintaan Reset Kata Sandi Dikirim</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
-                  Terima kasih sudah melakukan permintaan reset password, Mohon tunggu persetujuan dari Admin Pusat.
+                  Terima kasih sudah melakukan permintaan reset kata sandi, Mohon tunggu persetujuan dari Admin Pusat.
                 </p>
                 <button
                   type="button"
                   onClick={handleCloseForgotPasswordSuccess}
                   className="w-full px-4 py-2 bg-[#0c9361] hover:bg-[#0a7a4f] text-white font-semibold rounded-lg transition-colors"
                 >
-                  OK
+                  Oke
                 </button>
               </div>
             </div>
           </div>
         </>
       )}
+
+      {/* Error Modal for Login Errors */}
+      <ErrorModal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title="Gagal Masuk"
+        message={error || 'Email atau kata sandi tidak valid. Silakan coba lagi.'}
+        type="error"
+      />
     </div>
   );
 }

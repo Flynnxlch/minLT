@@ -1,25 +1,58 @@
 import { Link } from 'react-router-dom';
 
-const colorClasses = {
-  primary: 'bg-[#0d6efd] text-white',
-  success: 'bg-[#198754] text-white',
-  warning: 'bg-[#ffc107] text-gray-900',
-  danger: 'bg-[#dc3545] text-white',
-  info: 'bg-[#0dcaf0] text-gray-900',
-  secondary: 'bg-[#6c757d] text-white',
-  dark: 'bg-[#212529] text-white',
-  light: 'bg-[#f8f9fa] text-gray-900',
+// Modern gradient definitions with glassmorphism support
+const gradientClasses = {
+  primary: {
+    gradient: 'from-blue-500 via-blue-600 to-blue-700 dark:from-blue-600 dark:via-blue-700 dark:to-blue-800',
+    iconBg: 'bg-blue-400/20 dark:bg-blue-500/20',
+    iconColor: 'text-blue-200 dark:text-blue-100',
+    footerBg: 'bg-blue-800/40 dark:bg-blue-900/50 backdrop-blur-sm',
+    footerHover: 'hover:bg-blue-800/60 dark:hover:bg-blue-900/70',
+  },
+  success: {
+    gradient: 'from-green-500 via-green-600 to-green-700 dark:from-green-600 dark:via-green-700 dark:to-green-800',
+    iconBg: 'bg-green-400/20 dark:bg-green-500/20',
+    iconColor: 'text-green-200 dark:text-green-100',
+    footerBg: 'bg-green-800/40 dark:bg-green-900/50 backdrop-blur-sm',
+    footerHover: 'hover:bg-green-800/60 dark:hover:bg-green-900/70',
+  },
+  warning: {
+    gradient: 'from-yellow-400 via-yellow-500 to-yellow-600 dark:from-yellow-500 dark:via-yellow-600 dark:to-yellow-700',
+    iconBg: 'bg-yellow-300/20 dark:bg-yellow-400/20',
+    iconColor: 'text-yellow-100 dark:text-yellow-50',
+    footerBg: 'bg-yellow-700/40 dark:bg-yellow-800/50 backdrop-blur-sm',
+    footerHover: 'hover:bg-yellow-700/60 dark:hover:bg-yellow-800/70',
+  },
+  danger: {
+    gradient: 'from-red-500 via-red-600 to-red-700 dark:from-red-600 dark:via-red-700 dark:to-red-800',
+    iconBg: 'bg-red-400/20 dark:bg-red-500/20',
+    iconColor: 'text-red-200 dark:text-red-100',
+    footerBg: 'bg-red-800/40 dark:bg-red-900/50 backdrop-blur-sm',
+    footerHover: 'hover:bg-red-800/60 dark:hover:bg-red-900/70',
+  },
+  info: {
+    gradient: 'from-cyan-400 via-cyan-500 to-cyan-600 dark:from-cyan-500 dark:via-cyan-600 dark:to-cyan-700',
+    iconBg: 'bg-cyan-300/20 dark:bg-cyan-400/20',
+    iconColor: 'text-cyan-100 dark:text-cyan-50',
+    footerBg: 'bg-cyan-700/40 dark:bg-cyan-800/50 backdrop-blur-sm',
+    footerHover: 'hover:bg-cyan-700/60 dark:hover:bg-cyan-800/70',
+  },
+  secondary: {
+    gradient: 'from-gray-500 via-gray-600 to-gray-700 dark:from-gray-600 dark:via-gray-700 dark:to-gray-800',
+    iconBg: 'bg-gray-400/20 dark:bg-gray-500/20',
+    iconColor: 'text-gray-200 dark:text-gray-100',
+    footerBg: 'bg-gray-800/40 dark:bg-gray-900/50 backdrop-blur-sm',
+    footerHover: 'hover:bg-gray-800/60 dark:hover:bg-gray-900/70',
+  },
 };
 
-const footerColorClasses = {
-  primary: 'text-white/90 hover:text-white hover:bg-black/10',
-  success: 'text-white/90 hover:text-white hover:bg-black/10',
-  warning: 'text-gray-900/80 hover:text-gray-900 hover:bg-black/10',
-  danger: 'text-white/90 hover:text-white hover:bg-black/10',
-  info: 'text-gray-900/80 hover:text-gray-900 hover:bg-black/10',
-  secondary: 'text-white/90 hover:text-white hover:bg-black/10',
-  dark: 'text-white/90 hover:text-white hover:bg-black/10',
-  light: 'text-gray-900/80 hover:text-gray-900 hover:bg-black/10',
+const textColorClasses = {
+  primary: 'text-white',
+  success: 'text-white',
+  warning: 'text-gray-900 dark:text-gray-100',
+  danger: 'text-white',
+  info: 'text-gray-900 dark:text-white',
+  secondary: 'text-white',
 };
 
 export default function SmallBox({
@@ -31,51 +64,86 @@ export default function SmallBox({
   linkText = 'More info',
   suffix = '',
 }) {
+  const colorConfig = gradientClasses[color] || gradientClasses.primary;
+  const textColor = textColorClasses[color] || 'text-white';
+
   return (
-    <div 
+    <Link
+      to={link}
       className={`
-        small-box relative block rounded-lg shadow-[var(--shadow-card)] mb-5 overflow-hidden
-        ${colorClasses[color] || colorClasses.primary}
+        small-box group relative block rounded-xl overflow-hidden
+        bg-gradient-to-br ${colorConfig.gradient}
+        shadow-lg hover:shadow-xl transition-all duration-300
+        transform hover:-translate-y-1
+        ${textColor}
       `}
     >
-      {/* Inner content */}
-      <div className="p-3 relative z-10">
-        <h3 className="text-[2.2rem] font-bold whitespace-nowrap m-0 mb-2">
-          {value}
-          {suffix && <sup className="text-base ml-0.5">{suffix}</sup>}
-        </h3>
-        <p className="text-base m-0">{title}</p>
-      </div>
+      {/* Glassmorphism overlay */}
+      <div className="absolute inset-0 bg-white/5 dark:bg-white/5 backdrop-blur-[1px] pointer-events-none" />
+      
+      {/* Decorative gradient overlay for depth */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10 pointer-events-none" />
 
-      {/* Icon */}
-      {icon && (
-        <div className="small-box-icon absolute top-4 right-4 z-0 text-black/15 transition-transform duration-300">
-          {typeof icon === 'string' ? (
-            <i className={`bi ${icon} text-[70px]`}></i>
-          ) : (
-            <svg 
-              className="h-[70px] w-[70px]" 
-              fill="currentColor" 
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              {icon}
-            </svg>
+      {/* Main content container */}
+      <div className="relative z-10 p-6 pb-4">
+        {/* Top section: Value and Icon */}
+        <div className="flex items-start justify-between mb-4">
+          {/* Value section */}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-4xl sm:text-5xl font-bold leading-none mb-2 drop-shadow-lg">
+              {value}
+              {suffix && <sup className="text-xl sm:text-2xl ml-1 font-semibold opacity-90">{suffix}</sup>}
+            </h3>
+            <p className="text-base sm:text-lg font-medium opacity-95 leading-tight">{title}</p>
+          </div>
+
+          {/* Icon with background shape */}
+          {icon && (
+            <div className={`
+              relative flex-shrink-0 ml-4
+              ${colorConfig.iconBg} rounded-xl p-3
+              transition-all duration-300 group-hover:scale-110 group-hover:rotate-3
+            `}>
+              <div className={`
+                absolute inset-0 rounded-xl
+                bg-gradient-to-br from-white/20 to-transparent
+                opacity-0 group-hover:opacity-100 transition-opacity duration-300
+              `} />
+              {typeof icon === 'string' ? (
+                <i className={`bi ${icon} text-3xl sm:text-4xl ${colorConfig.iconColor} relative z-10`}></i>
+              ) : (
+                <svg 
+                  className={`h-8 w-8 sm:h-10 sm:w-10 ${colorConfig.iconColor} relative z-10`}
+                  fill="currentColor" 
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  {icon}
+                </svg>
+              )}
+            </div>
           )}
         </div>
-      )}
+      </div>
 
-      {/* Footer link */}
-      <Link
-        to={link}
-        className={`
-          relative z-10 block text-center py-1.5 bg-black/[.07] transition-colors
-          ${footerColorClasses[color] || footerColorClasses.primary}
-        `}
-      >
-        {linkText} <i className="bi bi-link-45deg"></i>
-      </Link>
-    </div>
+      {/* Footer link section with improved separation */}
+      <div className={`
+        relative z-10 px-6 py-3 mt-auto
+        ${colorConfig.footerBg} border-t border-white/10 dark:border-white/5
+        transition-all duration-300 ${colorConfig.footerHover}
+      `}>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold opacity-95 group-hover:opacity-100 transition-opacity">
+            {linkText}
+          </span>
+          <i className="bi bi-arrow-right text-base opacity-80 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300"></i>
+        </div>
+      </div>
+
+      {/* Subtle shadow on hover */}
+      <div className="absolute inset-0 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" 
+           style={{ boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)' }} />
+    </Link>
   );
 }
 

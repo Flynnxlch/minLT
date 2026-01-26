@@ -1,16 +1,14 @@
 import { useMemo, useState } from 'react';
-import { computeRiskScore, getRiskLevel } from '../../utils/risk';
-import RiskLevelBadge from '../risk/RiskLevelBadge';
+import { useAuth } from '../../context/AuthContext';
 import CabangDropdown from '../ui/CabangDropdown';
+import CategoryDropdown from '../ui/CategoryDropdown';
+import DivisionDropdown from '../ui/DivisionDropdown';
+import { getCabangLabel } from '../../utils/cabang';
 
-const ORGANIZATION_OPTIONS = [
-  'Corporate',
-  'Regional Office',
-  'Branch Office',
-  'Subsidiary',
-];
+// Organization is now fixed as "PT. BVB"
+const ORGANIZATION_FIXED = 'PT. Gapura Angkasa';
 
-const DIVISION_OPTIONS = [
+const DIVISION_OPTIONS_KPS = [
   'Internal Audit Group Head',
   'Quality Assurance Group Head',
   'Corporate Secretary and General Affair Group',
@@ -22,19 +20,7 @@ const DIVISION_OPTIONS = [
   'Training Development Group Head',
   'Accounting, Tax & Asset Management Group',
 ];
-
-const CATEGORY_OPTIONS = [
-  'Investasi',
-  'Pasar',
-  'Keuangan',
-  'Organisasional',
-  'Hukum dan Kepatuhan',
-  'Reputasi',
-  'Strategis',
-  'Kredit dan Counterpart',
-  'Transaksi Antar Emitas Grup',
-  'Asuransi',
-];
+const DIVISION_OPTIONS_NON_KPS = [...DIVISION_OPTIONS_KPS, 'Divisi Korieopio'];
 
 const RISK_TYPE_OPTIONS = [
   'Strategic',
@@ -43,6 +29,12 @@ const RISK_TYPE_OPTIONS = [
   'Compliance',
   'Reputational',
   'Technology',
+];
+
+const RISK_CATEGORY_TYPE_OPTIONS = [
+  'Kualitatif',
+  'Kuantitatif',
+  'Kualitatif dan Kuantitatif',
 ];
 
 // Cabang options are now handled by CabangDropdown component
@@ -65,28 +57,60 @@ const IMPACT_LABELS = {
 
 export default function RiskForm({
   onSubmit,
-  submitLabel = 'Add Risk',
+  submitLabel = 'Tambah Risiko',
   compact = false,
   simplified = false, // For New Risk Entry - only show basic fields
   initial = {},
 }) {
-  const [organization, setOrganization] = useState(initial.organization || ORGANIZATION_OPTIONS[0]);
-  const [division, setDivision] = useState(initial.division || DIVISION_OPTIONS[0]);
+  const { user } = useAuth();
+  
+  // Determine if user can select cabang (only ADMIN_PUSAT can select)
+  const canSelectCabang = user?.userRole === 'ADMIN_PUSAT';
+  
+  // Auto-set regionCode from user's regionCabang for ADMIN_CABANG and USER_BIASA
+  const defaultRegionCode = useMemo(() => {
+    if (initial.regionCode) {
+      return initial.regionCode;
+    }
+    // For ADMIN_CABANG and USER_BIASA, use their regionCabang
+    if (user?.regionCabang && !canSelectCabang) {
+      return user.regionCabang;
+    }
+    return 'KPS'; // Default fallback
+  }, [initial.regionCode, user?.regionCabang, canSelectCabang]);
+
+  // Organization is fixed as "PT. BVB" and cannot be edited
+  const organization = ORGANIZATION_FIXED;
+  const [division, setDivision] = useState(initial.division || '');
   const [target, setTarget] = useState(initial.target || '');
   const [activity, setActivity] = useState(initial.activity || '');
   const [riskEvent, setRiskEvent] = useState(initial.riskEvent || '');
-  const [category, setCategory] = useState(initial.category || CATEGORY_OPTIONS[0]);
-  const [riskType, setRiskType] = useState(initial.riskType || RISK_TYPE_OPTIONS[0]);
+  const [riskEventDescription, setRiskEventDescription] = useState(initial.riskEventDescription || '');
+  const [category, setCategory] = useState(initial.category || '');
+  const [riskType] = useState(initial.riskType || RISK_TYPE_OPTIONS[0]);
+  const [riskCategoryType, setRiskCategoryType] = useState(initial.riskCategoryType || RISK_CATEGORY_TYPE_OPTIONS[0]);
   const [riskCause, setRiskCause] = useState(initial.riskCause || '');
   const [quantitativeRiskImpact, setQuantitativeRiskImpact] = useState(initial.quantitativeRiskImpact || '');
   const [riskImpactExplanation, setRiskImpactExplanation] = useState(initial.riskImpactExplanation || '');
-  const [regionCode, setRegionCode] = useState(initial.regionCode || 'KPS');
+  // For ADMIN_CABANG and USER_BIASA, regionCode is locked to user's regionCabang
+  // For ADMIN_PUSAT, regionCode can be changed via dropdown
+  // Use useMemo to get the actual regionCode to use (locked for non-admin users)
+  const actualRegionCode = useMemo(() => {
+    if (!canSelectCabang && user?.regionCabang) {
+      // For ADMIN_CABANG and USER_BIASA, always use their regionCabang
+      return user.regionCabang;
+    }
+    // For ADMIN_PUSAT, use the state value (can be changed)
+    return defaultRegionCode;
+  }, [canSelectCabang, user?.regionCabang, defaultRegionCode]);
+
+  const [regionCode, setRegionCode] = useState(actualRegionCode);
   const [possibility, setPossibility] = useState(initial.possibility || initial.possibilityType || initial.likelihood || 3);
   const [impact, setImpact] = useState(initial.impactLevel || initial.impact || 4);
   const [mitigation, setMitigation] = useState(initial.mitigation || '');
 
-  const score = useMemo(() => computeRiskScore({ possibility, impactLevel: impact }), [possibility, impact]);
-  const level = useMemo(() => getRiskLevel(score), [score]);
+  // For non-selectable users, ensure regionCode stays in sync with user's regionCabang
+  const finalRegionCode = canSelectCabang ? regionCode : (user?.regionCabang || regionCode);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -98,13 +122,15 @@ export default function RiskForm({
       target: target.trim(),
       activity: activity.trim(),
       riskEvent: riskEvent.trim(),
+      riskEventDescription: riskEventDescription.trim(),
       category,
       riskType,
+      riskCategoryType,
       riskCause: riskCause.trim(),
       quantitativeRiskImpact: quantitativeRiskImpact.trim(),
       riskImpactExplanation: riskImpactExplanation.trim(),
       title: riskEvent.trim(), // Keep title for backward compatibility
-      regionCode,
+      regionCode: finalRegionCode,
     };
     
     // Only include these fields if not simplified
@@ -124,6 +150,7 @@ export default function RiskForm({
       setTarget('');
       setActivity('');
       setRiskEvent('');
+      setRiskEventDescription('');
       setRiskCause('');
       setQuantitativeRiskImpact('');
       setRiskImpactExplanation('');
@@ -143,182 +170,126 @@ export default function RiskForm({
       {/* Organization & Division */}
       <div className={compact ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'}>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Organization</label>
-          <select className={inputBase} value={organization} onChange={(e) => setOrganization(e.target.value)}>
-            {ORGANIZATION_OPTIONS.map((o) => (
-              <option key={o} value={o}>{o}</option>
-            ))}
-          </select>
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Nama Perusahaan</label>
+          <input
+            type="text"
+            className={`${inputBase} bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed border-gray-300 dark:border-gray-600`}
+            value={organization}
+            readOnly
+            disabled
+          />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Division</label>
-          <select className={inputBase} value={division} onChange={(e) => setDivision(e.target.value)}>
-            {DIVISION_OPTIONS.map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Divisi</label>
+          <DivisionDropdown
+            value={division}
+            onChange={setDivision}
+            regionCode={finalRegionCode}
+            placeholder="Pilih Divisi"
+          />
         </div>
       </div>
 
-      {/* Target & Activity */}
+      {/* Sasaran & Cabang */}
       <div className={compact ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'}>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Target</label>
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Sasaran</label>
           <input
             className={inputBase}
             value={target}
             onChange={(e) => setTarget(e.target.value)}
-            placeholder="e.g., Q4 Revenue Target"
+            placeholder="Contoh: Target Pendapatan Q4"
           />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Activity</label>
-          <input
-            className={inputBase}
-            value={activity}
-            onChange={(e) => setActivity(e.target.value)}
-            placeholder="e.g., Product Launch"
-          />
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Cabang</label>
+          {canSelectCabang ? (
+            // ADMIN_PUSAT can select cabang
+            <CabangDropdown
+              value={regionCode}
+              onChange={setRegionCode}
+              openUpward={false}
+            />
+          ) : (
+            // ADMIN_CABANG and USER_BIASA: show read-only field with their regionCabang
+            <input
+              type="text"
+              className={`${inputBase} bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed border-gray-300 dark:border-gray-600`}
+              value={getCabangLabel(finalRegionCode) || finalRegionCode || 'N/A'}
+              readOnly
+              disabled
+            />
+          )}
         </div>
       </div>
 
       {/* Risk Event */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Risk Event</label>
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Peristiwa Risiko</label>
         <input
           className={inputBase}
           value={riskEvent}
           onChange={(e) => setRiskEvent(e.target.value)}
-          placeholder="e.g., Supplier disruption for critical components"
+          placeholder="Contoh: Gangguan supplier untuk komponen kritis"
           required
         />
       </div>
 
-      {/* Risk Category & Risk Type */}
-      <div className={compact ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'}>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Risk Category</label>
-          <select className={inputBase} value={category} onChange={(e) => setCategory(e.target.value)}>
-            {CATEGORY_OPTIONS.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
+      {/* Deskripsi Peristiwa Risiko */}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Deskripsi Peristiwa Risiko</label>
+        <textarea
+          className={`${inputBase} min-h-[80px] resize-y`}
+          value={riskEventDescription}
+          onChange={(e) => setRiskEventDescription(e.target.value)}
+          placeholder="Jelaskan peristiwa risiko secara detail..."
+        />
+      </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Risk Type</label>
-          <select className={inputBase} value={riskType} onChange={(e) => setRiskType(e.target.value)}>
-            {RISK_TYPE_OPTIONS.map((rt) => (
-              <option key={rt} value={rt}>{rt}</option>
-            ))}
-          </select>
-        </div>
+      {/* Kategori Risiko */}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Kategori</label>
+        <CategoryDropdown
+          value={category}
+          onChange={setCategory}
+          openUpward={false}
+        />
       </div>
 
       {/* Risk Cause */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Risk Cause</label>
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Penyebab Risiko</label>
         <textarea
           className={`${inputBase} min-h-[80px] resize-y`}
           value={riskCause}
           onChange={(e) => setRiskCause(e.target.value)}
-          placeholder="Describe the root cause of the risk..."
+          placeholder="Jelaskan akar penyebab risiko..."
         />
       </div>
 
-      {/* Quantitative Risk Impact */}
+      {/* Kategori Resiko */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Quantitative Risk Impact</label>
-        <input
-          className={inputBase}
-          value={quantitativeRiskImpact}
-          onChange={(e) => setQuantitativeRiskImpact(e.target.value)}
-          placeholder="e.g., $500K loss, 20% delay"
-        />
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Kategori Dampak</label>
+        <select className={inputBase} value={riskCategoryType} onChange={(e) => setRiskCategoryType(e.target.value)}>
+          {RISK_CATEGORY_TYPE_OPTIONS.map((rct) => (
+            <option key={rct} value={rct}>{rct}</option>
+          ))}
+        </select>
       </div>
 
-      {/* Risk Impact Explanation */}
+      {/* Deskripsi Dampak */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Risk Impact Explanation</label>
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Deskripsi Dampak</label>
         <textarea
           className={`${inputBase} min-h-[80px] resize-y`}
           value={riskImpactExplanation}
           onChange={(e) => setRiskImpactExplanation(e.target.value)}
-          placeholder="Explain the potential impact in detail..."
+          placeholder="Jelaskan dampak potensial secara detail..."
         />
       </div>
-
-      {/* Region/Cabang - only show in simplified mode */}
-      {simplified && (
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Region/Cabang</label>
-          <CabangDropdown
-            value={regionCode}
-            onChange={setRegionCode}
-            openUpward={true}
-          />
-        </div>
-      )}
-
-      {/* Region - only show if not simplified */}
-      {!simplified && (
-        <>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Region/Cabang</label>
-            <CabangDropdown
-              value={regionCode}
-              onChange={setRegionCode}
-            />
-          </div>
-
-          <div className={compact ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'}>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Probabilitas (1–5)</label>
-              <select className={inputBase} value={possibility} onChange={(e) => setPossibility(e.target.value)}>
-                {[1, 2, 3, 4, 5].map((v) => (
-                  <option key={v} value={v}>
-                    {v} — {POSSIBILITY_LABELS[v]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Dampak (1–5)</label>
-              <select className={inputBase} value={impact} onChange={(e) => setImpact(e.target.value)}>
-                {[1, 2, 3, 4, 5].map((v) => (
-                  <option key={v} value={v}>
-                    {v} — {IMPACT_LABELS[v]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Mitigation (summary)</label>
-            <textarea
-              className={`${inputBase} min-h-[96px] resize-y`}
-              value={mitigation}
-              onChange={(e) => setMitigation(e.target.value)}
-              placeholder="Describe mitigation actions, owner, due date, and evidence..."
-            />
-          </div>
-        </>
-      )}
-
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
-        {!simplified && (
-          <div className="flex items-center gap-3">
-            <RiskLevelBadge score={score} />
-            <span className="text-sm text-gray-600 dark:text-gray-300">
-              Level: <span className="font-semibold text-gray-900 dark:text-gray-100">{level.label}</span>
-            </span>
-          </div>
-        )}
-
         <button
           type="submit"
           className="inline-flex items-center justify-center rounded-lg bg-[#0d6efd] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 transition-colors"

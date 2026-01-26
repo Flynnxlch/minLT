@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import RiskCard from '../components/risk/RiskCard';
 import ContentHeader from '../components/ui/ContentHeader';
 import { Card } from '../components/widgets';
-import RiskCard from '../components/risk/RiskCard';
 import { useRisks } from '../context/RiskContext';
 import { sortRisksByScoreDesc } from '../utils/risk';
 import { getRiskStatus } from '../utils/riskStatus';
@@ -11,25 +11,42 @@ export default function Mitigations() {
   const { risks } = useRisks();
   const navigate = useNavigate();
 
-  // Only show risks with status "Analyzed" or "Not Finished" (can create mitigation plan)
+  // Debug log to trace eligible mitigation cards rendering
+  console.log('[Mitigations] total risks:', risks?.length, risks);
+
+  // Show risks that can have mitigation plans:
+  // - "Analyzed" (has analysis but no mitigation plan yet)
+  // - "Planned" (has mitigation plan but hasn't been evaluated yet)
+  // - "Need Improvement" (has evaluation but not effective - evaluationStatus !== 'effective')
+  // Exclude risks that have been accepted (evaluationStatus === 'effective')
   const eligible = useMemo(() => {
     return sortRisksByScoreDesc(risks).filter((r) => {
       const status = getRiskStatus(r);
-      return status === 'analyzed' || status === 'not-finished';
+      const evaluationStatus = r.evaluationStatus;
+      
+      // Exclude risks that have been accepted (effective)
+      if (evaluationStatus === 'effective') {
+        return false;
+      }
+      
+      // Show risks that are analyzed, planned, or not-finished (rejected evaluation)
+      return status === 'analyzed' || status === 'planned' || status === 'not-finished';
     });
   }, [risks]);
+
+  console.log('[Mitigations] eligible for mitigation:', eligible?.length, eligible);
 
   return (
     <>
       <ContentHeader
-        title="Mitigation Plans"
+        title="Rencana Mitigasi"
         breadcrumbs={[
-          { label: 'Home', path: '/' },
-          { label: 'Mitigation Plans' },
+          { label: 'Beranda', path: '/' },
+          { label: 'Rencana Mitigasi' },
         ]}
       />
 
-      <Card title="Mitigation Overview" collapsible>
+      <Card title="Ringkasan Mitigasi">
         <div className="space-y-3">
           {eligible.map((r) => (
             <RiskCard
@@ -37,13 +54,12 @@ export default function Mitigations() {
               risk={r}
               showLocation={false}
               showEvaluationMonth={false}
-              showMitigation={true}
               onClick={() => navigate(`/risks/${r.id}/mitigation-plan`)}
             />
           ))}
           {!eligible.length && (
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              No assessed risks yet. Analyze a risk first, then create its mitigation plan.
+              Belum ada risiko yang dinilai. Analisis risiko terlebih dahulu, lalu buat rencana mitigasinya.
             </div>
           )}
         </div>

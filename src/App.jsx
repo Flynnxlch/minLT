@@ -1,10 +1,12 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppWrapper } from './components/layout';
+import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { RiskProvider } from './context/RiskContext';
 import { SidebarProvider } from './context/SidebarContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Dashboard from './pages/Dashboard';
+import Guide from './pages/Guide';
 import InherentRiskEvaluation from './pages/InherentRiskEvaluation';
 import Login from './pages/Login';
 import MitigationPlan from './pages/MitigationPlan';
@@ -12,7 +14,6 @@ import Mitigations from './pages/Mitigations';
 import MonthlyEvaluations from './pages/MonthlyEvaluations';
 import MonthlyEvaluationForm from './pages/MonthlyEvaluationForm';
 import NewRiskEntry from './pages/NewRiskEntry';
-import Profile from './pages/Profile';
 import Reports from './pages/Reports';
 import RiskDetail from './pages/RiskDetail';
 import RiskRegister from './pages/RiskRegister';
@@ -40,7 +41,7 @@ function ProtectedRoute({ children }) {
       <div className="min-h-screen flex items-center justify-center bg-(--color-body-bg) dark:bg-(--color-body-bg-dark)">
         <div className="text-center">
           <i className="bi bi-arrow-repeat animate-spin text-4xl text-[#0c9361] mb-4"></i>
-          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-400">Memeriksa kredensial...</p>
         </div>
       </div>
     );
@@ -62,7 +63,7 @@ function PublicRoute({ children }) {
       <div className="min-h-screen flex items-center justify-center bg-(--color-body-bg) dark:bg-(--color-body-bg-dark)">
         <div className="text-center">
           <i className="bi bi-arrow-repeat animate-spin text-4xl text-[#0c9361] mb-4"></i>
-          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-400">Memeriksa kredensial...</p>
         </div>
       </div>
     );
@@ -88,7 +89,7 @@ function AppRoutes() {
         }
       />
 
-      {/* Protected Routes */}
+      {/* Default route - redirect to login if not authenticated */}
       <Route
         path="/"
         element={
@@ -211,34 +212,44 @@ function AppRoutes() {
       />
 
       <Route
-        path="/profile"
+        path="/guide"
         element={
           <ProtectedRoute>
             <AppWrapper>
-              <Profile />
+              <Guide />
             </AppWrapper>
           </ProtectedRoute>
         }
       />
 
-      {/* Catch all */}
-      <Route path="*" element={<PlaceholderPage title="Page Not Found" />} />
+
+      {/* Catch all - redirect to login if not authenticated, otherwise show 404 */}
+      <Route 
+        path="*" 
+        element={
+          <ProtectedRoute>
+            <PlaceholderPage title="Page Not Found" />
+          </ProtectedRoute>
+        } 
+      />
     </Routes>
   );
 }
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
-          <SidebarProvider>
-            <RiskProvider>
-              <AppRoutes />
-            </RiskProvider>
-          </SidebarProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <ThemeProvider>
+          <AuthProvider>
+            <SidebarProvider>
+              <RiskProvider>
+                <AppRoutes />
+              </RiskProvider>
+            </SidebarProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

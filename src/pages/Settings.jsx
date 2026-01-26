@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ContentHeader from '../components/ui/ContentHeader';
+import LogoutConfirmModal from '../components/ui/LogoutConfirmModal';
+import UserIcon from '../components/ui/UserIcon';
 import { Card } from '../components/widgets';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import LogoutConfirmModal from '../components/ui/LogoutConfirmModal';
-import UserIcon from '../components/ui/UserIcon';
 
 export default function Settings() {
   const { user, logout } = useAuth();
@@ -26,21 +26,21 @@ export default function Settings() {
   return (
     <>
       <ContentHeader
-        title="Settings"
+        title="Pengaturan"
         breadcrumbs={[
-          { label: 'Home', path: '/' },
-          { label: 'Settings' },
+          { label: 'Beranda', path: '/' },
+          { label: 'Pengaturan' },
         ]}
       />
 
       <div className="space-y-4">
-        <Card title="Appearance" collapsible>
+        <Card title="Tampilan">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Theme</h4>
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Tema</h4>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Switch between light and dark mode
+                  Beralih antara mode terang dan gelap
                 </p>
               </div>
               <button
@@ -59,12 +59,12 @@ export default function Settings() {
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               <i className={`bi ${isDark ? 'bi-moon-fill' : 'bi-sun-fill'} text-lg`}></i>
-              <span>Current theme: <span className="font-semibold text-gray-900 dark:text-white">{theme === 'dark' ? 'Dark' : 'Light'}</span></span>
+              <span>Tema saat ini: <span className="font-semibold text-gray-900 dark:text-white">{theme === 'dark' ? 'Gelap' : 'Terang'}</span></span>
             </div>
           </div>
         </Card>
 
-        <Card title="Account" collapsible>
+        <Card title="Akun">
           <div className="space-y-4">
             {user && (
               <div className="flex items-center gap-4">
@@ -74,21 +74,20 @@ export default function Settings() {
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{user.name}</h4>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{user.role}</p>
                 </div>
               </div>
             )}
           </div>
         </Card>
 
-        <Card title="Actions" collapsible>
+        <Card title="Tindakan">
           <div className="space-y-3">
             <button
               onClick={handleLogoutClick}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             >
               <i className="bi bi-box-arrow-right"></i>
-              <span>Sign Out</span>
+              <span>Keluar</span>
             </button>
           </div>
         </Card>

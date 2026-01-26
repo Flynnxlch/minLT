@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from '../widgets';
+import NotificationPopup from '../ui/NotificationPopup';
+import { apiRequest, API_ENDPOINTS } from '../../config/api';
 
 // Helper function to truncate text
 function truncateText(value, maxChars) {
@@ -22,58 +24,114 @@ function formatDate(dateString) {
 
 export default function UserRequest({ onApprove, onReject }) {
   const [requests, setRequests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [processingId, setProcessingId] = useState(null);
+  const [notification, setNotification] = useState({ isOpen: false, type: 'error', title: '', message: '' });
+
+  const fetchRequests = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await apiRequest(API_ENDPOINTS.requests.registration.getAll);
+      // Filter to only show PENDING requests (backend should already filter, but this is a safety check)
+      const pendingRequests = (data.requests || []).filter(
+        req => !req.status || req.status.toLowerCase() === 'pending'
+      );
+      setRequests(pendingRequests);
+    } catch (err) {
+      setError(err.message || 'Gagal memuat permintaan registrasi');
+      console.error('Error fetching registration requests:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Load registration requests from localStorage
-    const stored = localStorage.getItem('minlt:registration-requests');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        // Add id if missing
-        const withIds = parsed.map((req, idx) => ({
-          ...req,
-          id: req.id || `req-${Date.now()}-${idx}`,
-        }));
-        setRequests(withIds);
-      } catch {
-        setRequests([]);
-      }
-    }
+    fetchRequests();
   }, []);
 
-  const handleApprove = (requestId) => {
-    const updated = requests.filter((r) => r.id !== requestId);
-    setRequests(updated);
-    // Update localStorage
-    localStorage.setItem('minlt:registration-requests', JSON.stringify(updated));
-    onApprove?.(requestId);
+  const handleApprove = async (requestId) => {
+    if (processingId) return; // Prevent double submission
+    
+    try {
+      setProcessingId(requestId);
+      await apiRequest(API_ENDPOINTS.requests.registration.approve(requestId), {
+        method: 'POST',
+      });
+      await fetchRequests(); // Refresh list
+      onApprove?.(requestId);
+    } catch (err) {
+      console.error('Error approving request:', err);
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Gagal Menyetujui',
+        message: err.message || 'Gagal menyetujui permintaan',
+      });
+      setProcessingId(null);
+    }
   };
 
-  const handleReject = (requestId) => {
-    const updated = requests.filter((r) => r.id !== requestId);
-    setRequests(updated);
-    // Update localStorage
-    localStorage.setItem('minlt:registration-requests', JSON.stringify(updated));
-    onReject?.(requestId);
+  const handleReject = async (requestId) => {
+    if (processingId) return; // Prevent double submission
+    
+    try {
+      setProcessingId(requestId);
+      await apiRequest(API_ENDPOINTS.requests.registration.reject(requestId), {
+        method: 'POST',
+      });
+      await fetchRequests(); // Refresh list
+      onReject?.(requestId);
+    } catch (err) {
+      console.error('Error rejecting request:', err);
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Gagal Menolak',
+        message: err.message || 'Gagal menolak permintaan',
+      });
+      setProcessingId(null);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <Card title="Permintaan Registrasi Pengguna">
+        <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
+          Memuat permintaan registrasi...
+        </div>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card title="Permintaan Registrasi Pengguna">
+        <div className="text-sm text-red-600 dark:text-red-400 text-center py-8">
+          Kesalahan: {error}
+        </div>
+      </Card>
+    );
+  }
 
   return (
-    <Card title="User Registration Requests" collapsible>
+    <Card title="Permintaan Registrasi Pengguna" collapsible>
       {requests.length === 0 ? (
         <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
-          No pending registration requests.
+          Tidak ada permintaan registrasi yang tertunda.
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 dark:border-[var(--color-card-border-dark)]">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Name</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Nama</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Email</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Cabang</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">NIP</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Requested At</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Actions</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Diminta Pada</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -94,20 +152,40 @@ export default function UserRequest({ onApprove, onReject }) {
                       <button
                         type="button"
                         onClick={() => handleApprove(request.id)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#198754] rounded-lg hover:bg-[#157347] transition-colors shadow-sm"
-                        title="Approve Request"
+                        disabled={processingId === request.id || (request.status && request.status.toLowerCase() !== 'pending')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#198754] rounded-lg hover:bg-[#157347] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Setujui Permintaan"
                       >
-                        <i className="bi bi-check-circle"></i>
-                        <span className="hidden sm:inline">Approve</span>
+                        {processingId === request.id ? (
+                          <>
+                            <i className="bi bi-arrow-repeat animate-spin"></i>
+                            <span className="hidden sm:inline">Memproses...</span>
+                          </>
+                        ) : (
+                          <>
+                            <i className="bi bi-check-circle"></i>
+                            <span className="hidden sm:inline">Setujui</span>
+                          </>
+                        )}
                       </button>
                       <button
                         type="button"
                         onClick={() => handleReject(request.id)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#dc3545] rounded-lg hover:bg-[#bb2d3b] transition-colors shadow-sm"
-                        title="Reject Request"
+                        disabled={processingId === request.id || (request.status && request.status.toLowerCase() !== 'pending')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#dc3545] rounded-lg hover:bg-[#bb2d3b] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Tolak Permintaan"
                       >
-                        <i className="bi bi-x-circle"></i>
-                        <span className="hidden sm:inline">Reject</span>
+                        {processingId === request.id ? (
+                          <>
+                            <i className="bi bi-arrow-repeat animate-spin"></i>
+                            <span className="hidden sm:inline">Memproses...</span>
+                          </>
+                        ) : (
+                          <>
+                            <i className="bi bi-x-circle"></i>
+                            <span className="hidden sm:inline">Tolak</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </td>
@@ -117,6 +195,15 @@ export default function UserRequest({ onApprove, onReject }) {
           </table>
         </div>
       )}
+
+      {/* Notification Popup */}
+      <NotificationPopup
+        isOpen={notification.isOpen}
+        onClose={() => setNotification({ ...notification, isOpen: false })}
+        type={notification.type}
+        title={notification.title}
+        message={notification.message}
+      />
     </Card>
   );
 }

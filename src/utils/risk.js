@@ -1,8 +1,9 @@
 export const RISK_LEVELS = [
   {
     key: 'rendah',
-    label: 'Rendah',
+    label: 'Low',
     labelEn: 'Low',
+    labelId: 'Rendah',
     min: 1,
     max: 5,
     badgeClass: 'bg-green-100 text-green-800 ring-1 ring-inset ring-green-200 dark:bg-green-900/30 dark:text-green-300',
@@ -12,8 +13,9 @@ export const RISK_LEVELS = [
   },
   {
     key: 'rendah-menengah',
-    label: 'Rendah - Menengah',
+    label: 'Low to Moderate',
     labelEn: 'Low to Moderate',
+    labelId: 'Rendah-Menengah',
     min: 6,
     max: 11,
     badgeClass: 'bg-lime-100 text-lime-800 ring-1 ring-inset ring-lime-200 dark:bg-lime-900/30 dark:text-lime-300',
@@ -23,8 +25,9 @@ export const RISK_LEVELS = [
   },
   {
     key: 'menengah',
-    label: 'Menengah',
+    label: 'Moderate',
     labelEn: 'Moderate',
+    labelId: 'Menengah',
     min: 12,
     max: 15,
     badgeClass: 'bg-yellow-100 text-yellow-900 ring-1 ring-inset ring-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300',
@@ -34,8 +37,9 @@ export const RISK_LEVELS = [
   },
   {
     key: 'menengah-tinggi',
-    label: 'Menengah - Tinggi',
+    label: 'Moderate to High',
     labelEn: 'Moderate to High',
+    labelId: 'Menengah-Tinggi',
     min: 16,
     max: 19,
     badgeClass: 'bg-orange-100 text-orange-900 ring-1 ring-inset ring-orange-200 dark:bg-orange-900/30 dark:text-orange-300',
@@ -45,8 +49,9 @@ export const RISK_LEVELS = [
   },
   {
     key: 'tinggi',
-    label: 'Tinggi',
+    label: 'High',
     labelEn: 'High',
+    labelId: 'Tinggi',
     min: 20,
     max: 25,
     badgeClass: 'bg-red-100 text-red-800 ring-1 ring-inset ring-red-200 dark:bg-red-900/30 dark:text-red-300',

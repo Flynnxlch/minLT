@@ -1,29 +1,10 @@
 import { useMemo, useState } from 'react';
-import { computeRiskScore } from '../../utils/risk';
+import { computeRiskScore, getRiskLevel } from '../../utils/risk';
 import RiskLevelBadge from '../risk/RiskLevelBadge';
-import RiskScoreBar from '../risk/RiskScoreBar';
+import NotificationPopup from '../ui/NotificationPopup';
+import HandlingTypeDropdown from '../ui/HandlingTypeDropdown';
 
-const HANDLING_TYPE_OPTIONS = [
-  { value: 'accept-monitor', label: 'Accept / Monitor' },
-  { value: 'reduce-mitigate', label: 'Reduce / Mitigate' },
-  { value: 'transfer-sharing', label: 'Transfer / Sharing' },
-  { value: 'avoid-hindari', label: 'Avoid / Hindari' },
-];
-
-const DIVISION_OPTIONS = [
-  'Internal Audit Group Head (UA)',
-  'Quality Assurance Group Head (UQ)',
-  'Corporate Secretary and General Affair Group (US)',
-  'Planning & Performance Group Head (UP)',
-  'Legal Group Head (UL)',
-  'Human Capital Management Group Head (HM)',
-  'Human Capital Support & Industrial Relation (HC)',
-  'Procurement Group Head (HB)',
-  'Training Development Group Head (HT)',
-  'Accounting, Tax & Asset Management Group (KF)',
-];
-
-const PROBABILITY_LABELS = {
+const POSSIBILITY_LABELS = {
   1: 'Sangat Jarang Terjadi',
   2: 'Jarang Terjadi',
   3: 'Bisa Terjadi',
@@ -50,121 +31,116 @@ export default function MitigationPlanForm({
   risk,
   onSubmit,
   onCancel,
+  onRequestEvaluation,
 }) {
+  // Notification state
+  const [notification, setNotification] = useState({ isOpen: false, type: 'confirm', title: '', message: '', onConfirm: null });
+
   // Mitigation Plan fields
-  const [riskEvent, setRiskEvent] = useState(risk?.riskEvent || risk?.title || '');
   const [handlingType, setHandlingType] = useState(
-    risk?.mitigationHandlingType || HANDLING_TYPE_OPTIONS[0].value
+    risk?.handlingType || risk?.mitigationHandlingType || ''
   );
   const [mitigatePlan, setMitigatePlan] = useState(risk?.mitigationPlan || risk?.mitigation || '');
-  const [handlingPic, setHandlingPic] = useState(risk?.mitigationPIC || risk?.mitigationOwner || risk?.owner || '');
   const [outputPlan, setOutputPlan] = useState(risk?.mitigationOutput || '');
-  const [startDate, setStartDate] = useState(risk?.mitigationStartDate || '');
-  const [endDate, setEndDate] = useState(risk?.mitigationEndDate || risk?.mitigationDueDate || '');
-  const [division, setDivision] = useState(risk?.mitigationDivision || risk?.division || DIVISION_OPTIONS[0]);
-  const [mitigationPrice, setMitigationPrice] = useState(
-    risk?.mitigationPrice !== undefined && risk?.mitigationPrice !== null ? String(risk.mitigationPrice) : ''
-  );
 
-  // End-year residual (quantitative + residual impact/probability)
-  const [residualQuantImpact, setResidualQuantImpact] = useState(risk?.residualQuantitativeRiskImpact || '');
-  const [residualQuantImpactDesc, setResidualQuantImpactDesc] = useState(
-    risk?.residualQuantitativeRiskImpactDescription || ''
-  );
-  const [residualImpactDescription, setResidualImpactDescription] = useState(risk?.residualImpactDescription || '');
-  const [residualImpactLevel, setResidualImpactLevel] = useState(risk?.residualImpactLevel || 0);
-  const [residualProbabilityDescription, setResidualProbabilityDescription] = useState(
-    risk?.residualProbabilityDescription || ''
-  );
-  const [residualProbabilityType, setResidualProbabilityType] = useState(risk?.residualProbabilityType || 0);
-  const [dateError, setDateError] = useState('');
+  // Anggaran & Realisasi biaya
+  const formatCurrency = (value) => {
+    if (!value || value === '' || value === '0') return '';
+    const num = typeof value === 'string' ? parseFloat(value.replace(/[^\d]/g, '')) : Number(value);
+    if (isNaN(num) || num === 0) return '';
+    // Format: Rp 100.000,00 (Indonesian format with dot as thousand separator)
+    const formatted = new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(num);
+    // Ensure format is Rp 100.000,00 (with dot for thousands and comma for decimals)
+    return formatted;
+  };
+  
+  // Parse currency from formatted string to number
+  const parseCurrency = (value) => {
+    if (!value) return '';
+    // Remove all non-digit characters (including Rp, spaces, dots, commas)
+    return value.replace(/[^\d]/g, '');
+  };
+  
+  const getInitialBudgetDisplay = () => {
+    if (risk?.mitigationBudget !== undefined && risk?.mitigationBudget !== null) {
+      return formatCurrency(String(risk.mitigationBudget));
+    }
+    return '';
+  };
+  const getInitialActualDisplay = () => {
+    if (risk?.mitigationActual !== undefined && risk?.mitigationActual !== null) {
+      return formatCurrency(String(risk.mitigationActual));
+    }
+    return '';
+  };
+
+  const [mitigationBudgetDisplay, setMitigationBudgetDisplay] = useState(getInitialBudgetDisplay());
+  const [mitigationActualDisplay, setMitigationActualDisplay] = useState(getInitialActualDisplay());
+
+  // Deskripsi tindak lanjut
+  const [progressMitigation, setProgressMitigation] = useState(risk?.progressMitigation || '');
+  const [realizationTarget, setRealizationTarget] = useState(risk?.realizationTarget || '');
+  const [targetKpi, setTargetKpi] = useState(risk?.targetKpi || '');
+
+  // Kondisi risiko terkini - menggunakan current fields
+  const [currentImpactLevel, setCurrentImpactLevel] = useState(risk?.currentImpactLevel || 0);
+  const [currentProbabilityType, setCurrentProbabilityType] = useState(risk?.currentProbabilityType || 0);
 
   const inputBase =
     'w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700/50 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors';
 
-  // Calculate residual score
-  const residualScoreRaw = useMemo(() => {
+  // Always use inherentScore from analysis, not from score or mitigation
+  // This ensures inherentScore is never affected by current_score or residual_score
+  const inherentScore = risk?.inherentScore || 0;
+  
+  // Calculate current score from current impact level and probability type
+  const currentScore = useMemo(() => {
     return computeRiskScore({
-      possibility: Number(residualProbabilityType) || 0,
-      impactLevel: Number(residualImpactLevel) || 0,
+      possibility: Number(currentProbabilityType) || 0,
+      impactLevel: Number(currentImpactLevel) || 0,
     });
-  }, [residualProbabilityType, residualImpactLevel]);
+  }, [currentProbabilityType, currentImpactLevel]);
 
-  const inherentScore = risk?.score || 0;
-  const finalResidualScore = useMemo(() => {
-    return Math.max(1, inherentScore - residualScoreRaw);
-  }, [inherentScore, residualScoreRaw]);
-
-  // Validate dates whenever they change
-  const validateDates = () => {
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      if (end <= start) {
-        setDateError('End Date must be after Start Date');
-        return false;
-      }
+  // Calculate current level from current score
+  const currentLevel = useMemo(() => {
+    if (currentScore > 0) {
+      const level = getRiskLevel(currentScore);
+      return level?.label || null;
     }
-    setDateError('');
-    return true;
-  };
-
-  // Validate on date changes
-  const handleStartDateChange = (e) => {
-    setStartDate(e.target.value);
-    if (endDate) {
-      setTimeout(validateDates, 0);
-    }
-  };
-
-  const handleEndDateChange = (e) => {
-    setEndDate(e.target.value);
-    if (startDate) {
-      setTimeout(validateDates, 0);
-    }
-  };
+    return null;
+  }, [currentScore]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validate dates before submitting
-    if (!validateDates()) {
-      return;
-    }
-
     const payload = {
       ...risk,
-      // Basic info
-      riskEvent: riskEvent.trim(),
-
       // Mitigation Plan main
       mitigation: mitigatePlan.trim(),
       mitigationPlan: mitigatePlan.trim(),
-      mitigationHandlingType: handlingType,
-      mitigationPIC: handlingPic.trim(),
-      mitigationOwner: handlingPic.trim(),
+      handlingType, // align with backend field name
       mitigationOutput: outputPlan.trim(),
-      mitigationStartDate: startDate,
-      mitigationEndDate: endDate,
-      mitigationDueDate: endDate,
-      mitigationDivision: division,
-      mitigationPrice: mitigationPrice === '' ? null : Number(mitigationPrice),
-
-      // End-year residual
-      residualQuantitativeRiskImpact: residualQuantImpact.trim(),
-      residualQuantitativeRiskImpactDescription: residualQuantImpactDesc.trim(),
-      residualImpactDescription: residualImpactDescription.trim(),
-      residualImpactLevel: Number(residualImpactLevel) || 0,
-      residualProbabilityDescription: residualProbabilityDescription.trim(),
-      residualProbabilityType: Number(residualProbabilityType) || 0,
-      residualScore: residualScoreRaw,
-      residualScoreFinal: finalResidualScore,
+      mitigationBudget: mitigationBudgetDisplay === '' ? null : Number(parseCurrency(mitigationBudgetDisplay)),
+      mitigationActual: mitigationActualDisplay === '' ? null : Number(parseCurrency(mitigationActualDisplay)),
+      progressMitigation: progressMitigation.trim(),
+      realizationTarget: realizationTarget.trim(),
+      // Preserve evaluationRequested status (don't change it when saving)
+      evaluationRequested: risk?.evaluationRequested || false,
+      targetKpi: targetKpi.trim(),
 
       // Save inherent score
       inherentScore: inherentScore,
 
-      // Update current score to residual score
-      score: finalResidualScore,
+      // Current Risk (after mitigation) - kondisi risiko terkini
+      currentImpactLevel: Number(currentImpactLevel) || null,
+      currentProbabilityType: Number(currentProbabilityType) || null,
+      currentScore: currentScore > 0 ? currentScore : null,
+      currentLevel: currentLevel || null,
     };
 
     onSubmit?.(payload);
@@ -173,252 +149,279 @@ export default function MitigationPlanForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800/40">
-        <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Risk Summary</div>
-        <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+        <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Ringkasan Risiko</div>
+        <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
           <div>
-            <span className="font-semibold">Existing Control Effectivity:</span>{' '}
-            {risk?.existingControlEffectivity 
-              ? CONTROL_EFFECTIVITY_LABELS[risk.existingControlEffectivity] || risk.existingControlEffectivity
+            <span className="font-semibold">Efektivitas Kontrol yang Ada:</span>{' '}
+            {risk?.controlEffectivenessAssessment
+              ? CONTROL_EFFECTIVITY_LABELS[risk.controlEffectivenessAssessment] || risk.controlEffectivenessAssessment
               : 'N/A'}
           </div>
-          <div>
-            <span className="font-semibold">Impact:</span>{' '}
-            {risk?.impactLevel 
-              ? `${risk.impactLevel} — ${IMPACT_LABELS[risk.impactLevel] || 'N/A'}`
-              : 'N/A'}
-            {risk?.impactDescription && (
-              <div className="mt-1 ml-0 text-gray-600 dark:text-gray-400">
-                {risk.impactDescription}
-              </div>
-            )}
+
+          <div className="space-y-1">
+            <div className="font-semibold text-gray-800 dark:text-gray-100">Inherent</div>
+            <div>
+              <span className="font-semibold">Dampak Inheren:</span>{' '}
+              {risk?.impactLevel
+                ? `${risk.impactLevel} — ${IMPACT_LABELS[risk.impactLevel] || 'N/A'}`
+                : 'N/A'}
+              {risk?.impactDescription && (
+                <div className="mt-1 ml-0 text-gray-600 dark:text-gray-400">{risk.impactDescription}</div>
+              )}
+            </div>
+            <div>
+              <span className="font-semibold">Kemungkinan Inheren:</span>{' '}
+              {risk?.possibilityType
+                ? `${risk.possibilityType} — ${POSSIBILITY_LABELS[risk.possibilityType] || 'N/A'}`
+                : 'N/A'}
+              {risk?.possibilityDescription && (
+                <div className="mt-1 ml-0 text-gray-600 dark:text-gray-400">{risk.possibilityDescription}</div>
+              )}
+            </div>
           </div>
-          <div>
-            <span className="font-semibold">Possibility:</span>{' '}
-            {risk?.possibilityType 
-              ? `${risk.possibilityType} — ${PROBABILITY_LABELS[risk.possibilityType] || 'N/A'}`
-              : 'N/A'}
-            {risk?.possibilityDescription && (
-              <div className="mt-1 ml-0 text-gray-600 dark:text-gray-400">
-                {risk.possibilityDescription}
-              </div>
-            )}
+
+          <div className="space-y-1">
+            <div className="font-semibold text-gray-800 dark:text-gray-100">Residual</div>
+            <div>
+              <span className="font-semibold">Dampak Residual:</span>{' '}
+              {risk?.residualImpactLevel
+                ? `${risk.residualImpactLevel} — ${IMPACT_LABELS[risk.residualImpactLevel] || 'N/A'}`
+                : 'N/A'}
+              {risk?.residualImpactDescription && (
+                <div className="mt-1 ml-0 text-gray-600 dark:text-gray-400">{risk.residualImpactDescription}</div>
+              )}
+            </div>
+            <div>
+              <span className="font-semibold">Kemungkinan Residual:</span>{' '}
+              {risk?.residualPossibilityType
+                ? `${risk.residualPossibilityType} — ${POSSIBILITY_LABELS[risk.residualPossibilityType] || 'N/A'}`
+                : 'N/A'}
+              {risk?.residualPossibilityDescription && (
+                <div className="mt-1 ml-0 text-gray-600 dark:text-gray-400">{risk.residualPossibilityDescription}</div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Risk Event</label>
-        <input
-          className={inputBase}
-          value={riskEvent}
-          onChange={(e) => setRiskEvent(e.target.value)}
-          placeholder="Describe the risk event..."
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Jenis Penanganan</label>
+        <HandlingTypeDropdown
+          value={handlingType}
+          onChange={setHandlingType}
+          placeholder="Pilih Jenis Penanganan"
         />
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Handling Type</label>
-        <select className={inputBase} value={handlingType} onChange={(e) => setHandlingType(e.target.value)}>
-          {HANDLING_TYPE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Risk Mitigate Plan</label>
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Rencana Mitigasi Risiko</label>
         <textarea
           className={`${inputBase} min-h-[110px] resize-y`}
           value={mitigatePlan}
           onChange={(e) => setMitigatePlan(e.target.value)}
-          placeholder="Describe the mitigation plan..."
+          placeholder="Jelaskan rencana mitigasi..."
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Risk Handling PIC</label>
-          <input
-            className={inputBase}
-            value={handlingPic}
-            onChange={(e) => setHandlingPic(e.target.value)}
-            placeholder="PIC / person in charge"
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Division</label>
-          <select
-            className={inputBase}
-            value={division}
-            onChange={(e) => setDivision(e.target.value)}
-          >
-            {DIVISION_OPTIONS.map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Output Mitigation Plan</label>
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Output Realisasi Mitigasi</label>
         <textarea
           className={`${inputBase} min-h-[90px] resize-y`}
           value={outputPlan}
           onChange={(e) => setOutputPlan(e.target.value)}
-          placeholder="Expected output/deliverable of the mitigation plan..."
+          placeholder="Output/hasil yang direalisasikan dari rencana mitigasi..."
         />
       </div>
 
+      {/* Anggaran & Realisasi */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Start Date</label>
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Anggaran Biaya Mitigasi Risiko</label>
           <input
-            type="date"
+            type="text"
+            inputMode="numeric"
             className={inputBase}
-            value={startDate}
-            onChange={handleStartDateChange}
-            max={endDate || undefined}
+            value={mitigationBudgetDisplay}
+            onChange={(e) => {
+              const rawValue = parseCurrency(e.target.value);
+              if (rawValue === '') {
+                setMitigationBudgetDisplay('');
+              } else {
+                setMitigationBudgetDisplay(formatCurrency(rawValue));
+              }
+            }}
+            onBlur={(e) => {
+              const rawValue = parseCurrency(e.target.value);
+              if (rawValue === '') {
+                setMitigationBudgetDisplay('');
+              } else {
+                setMitigationBudgetDisplay(formatCurrency(rawValue));
+              }
+            }}
+            placeholder="Rp 0"
           />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">End Date</label>
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Realisasi Biaya Mitigasi Risiko</label>
           <input
-            type="date"
-            className={`${inputBase} ${dateError ? 'border-red-500 dark:border-red-500 focus:ring-red-500 dark:focus:ring-red-500' : ''}`}
-            value={endDate}
-            onChange={handleEndDateChange}
-            min={startDate || undefined}
+            type="text"
+            inputMode="numeric"
+            className={inputBase}
+            value={mitigationActualDisplay}
+            onChange={(e) => {
+              const rawValue = parseCurrency(e.target.value);
+              if (rawValue === '') {
+                setMitigationActualDisplay('');
+              } else {
+                setMitigationActualDisplay(formatCurrency(rawValue));
+              }
+            }}
+            onBlur={(e) => {
+              const rawValue = parseCurrency(e.target.value);
+              if (rawValue === '') {
+                setMitigationActualDisplay('');
+              } else {
+                setMitigationActualDisplay(formatCurrency(rawValue));
+              }
+            }}
+            placeholder="Rp 0"
           />
-          {dateError && (
-            <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
-              <i className="bi bi-exclamation-circle"></i>
-              {dateError}
-            </p>
-          )}
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Mitigation Price</label>
-        <input
-          type="number"
-          inputMode="numeric"
-          className={inputBase}
-          value={mitigationPrice}
-          onChange={(e) => setMitigationPrice(e.target.value)}
-          placeholder="0"
-          min="0"
-          step="1"
-        />
+      {/* Persentase realisasi */}
+      <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <div className="w-14 h-14 rounded-full border-4 border-blue-200 dark:border-blue-900/40 flex items-center justify-center relative">
+          {(() => {
+            const budget = mitigationBudgetDisplay === '' ? 0 : Number(parseCurrency(mitigationBudgetDisplay));
+            const actual = mitigationActualDisplay === '' ? 0 : Number(parseCurrency(mitigationActualDisplay));
+            const pct = budget > 0 ? Math.min(100, Math.round((actual / budget) * 100)) : 0;
+            return (
+              <>
+                <svg className="absolute inset-0" viewBox="0 0 36 36">
+                  <path
+                    className="text-gray-200 dark:text-gray-700"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                    d="M18 2a16 16 0 1 1 0 32 16 16 0 1 1 0-32"
+                  />
+                  <path
+                    className="text-blue-500 dark:text-blue-400"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                    strokeDasharray={`${pct},100`}
+                    d="M18 2a16 16 0 1 1 0 32 16 16 0 1 1 0-32"
+                    strokeLinecap="round"
+                    transform="rotate(-90 18 18)"
+                  />
+                </svg>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">{pct}%</span>
+              </>
+            );
+          })()}
+        </div>
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          <div className="font-semibold text-gray-900 dark:text-white">Realisasi Anggaran</div>
+          <div>Menunjukkan persentase realisasi terhadap anggaran.</div>
+        </div>
       </div>
 
-      {/* End Year Residual */}
-      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-        <div className="text-sm font-semibold text-gray-900 dark:text-white mb-3">End Year Residual</div>
+      {/* Bagian 2: Deskripsi Tindak Lanjut */}
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-4">
+        <div className="text-sm font-semibold text-gray-900 dark:text-white">Bagian 2: Deskripsi Tindak Lanjut</div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Progress Mitigasi</label>
+          <textarea
+            className={`${inputBase} min-h-[90px] resize-y`}
+            value={progressMitigation}
+            onChange={(e) => setProgressMitigation(e.target.value)}
+            placeholder="Jelaskan progress mitigasi..."
+          />
+        </div>
+        <div className="space-y-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Realisasi Terhadap Target</label>
+            <textarea
+              className={`${inputBase} min-h-[90px] resize-y`}
+              value={realizationTarget}
+              onChange={(e) => setRealizationTarget(e.target.value)}
+              placeholder="Jelaskan realisasi terhadap target..."
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Target KPI</label>
+            <textarea
+              className={`${inputBase} min-h-[90px] resize-y`}
+              value={targetKpi}
+              onChange={(e) => setTargetKpi(e.target.value)}
+              placeholder="Jelaskan target KPI..."
+            />
+          </div>
+        </div>
+      </div>
 
+      {/* Bagian 3: Kondisi Risiko Terkini */}
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-4">
+        <div className="text-sm font-semibold text-gray-900 dark:text-white">Bagian 3: Kondisi Risiko Terkini</div>
+
+        {/* Dampak & Kemungkinan Terkini (tanpa deskripsi) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Quantitative Risk Impact</label>
-            <input
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Tingkat Dampak Terkini (1–5)</label>
+            <select
               className={inputBase}
-              value={residualQuantImpact}
-              onChange={(e) => setResidualQuantImpact(e.target.value)}
-              placeholder="e.g., Rp 500.000.000"
-            />
+              value={currentImpactLevel}
+              onChange={(e) => setCurrentImpactLevel(e.target.value)}
+            >
+              <option value={0}>-- Pilih --</option>
+              {[1, 2, 3, 4, 5].map((v) => (
+                <option key={v} value={v}>
+                  {v} — {IMPACT_LABELS[v]}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Description</label>
-            <input
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Tingkat Kemungkinan Terkini (1–5)</label>
+            <select
               className={inputBase}
-              value={residualQuantImpactDesc}
-              onChange={(e) => setResidualQuantImpactDesc(e.target.value)}
-              placeholder="Describe residual quantitative impact..."
-            />
+              value={currentProbabilityType}
+              onChange={(e) => setCurrentProbabilityType(e.target.value)}
+            >
+              <option value={0}>-- Pilih --</option>
+              {[1, 2, 3, 4, 5].map((v) => (
+                <option key={v} value={v}>
+                  {v} — {POSSIBILITY_LABELS[v]}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {/* Impact */}
-        <div className="mt-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
-            Impact
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Impact Description</label>
-              <textarea
-                className={`${inputBase} min-h-[90px] resize-y`}
-                value={residualImpactDescription}
-                onChange={(e) => setResidualImpactDescription(e.target.value)}
-                placeholder="Describe residual impact..."
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Impact Level (1–5)</label>
-              <select
-                className={inputBase}
-                value={residualImpactLevel}
-                onChange={(e) => setResidualImpactLevel(e.target.value)}
-              >
-                <option value={0}>-- Select --</option>
-                {[1, 2, 3, 4, 5].map((v) => (
-                  <option key={v} value={v}>
-                    {v} — {IMPACT_LABELS[v]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Probability */}
-        <div className="mt-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
-            Probability
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Probability Description</label>
-              <textarea
-                className={`${inputBase} min-h-[90px] resize-y`}
-                value={residualProbabilityDescription}
-                onChange={(e) => setResidualProbabilityDescription(e.target.value)}
-                placeholder="Describe residual probability..."
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Probability Level (1–5)</label>
-              <select
-                className={inputBase}
-                value={residualProbabilityType}
-                onChange={(e) => setResidualProbabilityType(e.target.value)}
-              >
-                <option value={0}>-- Select --</option>
-                {[1, 2, 3, 4, 5].map((v) => (
-                  <option key={v} value={v}>
-                    {v} — {PROBABILITY_LABELS[v]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Residual Risk Level Result */}
-        <div className="mt-4">
+        {/* Score Risiko Terkini */}
+        <div className="mt-2">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 gap-3">
             <div>
-              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Residual Risk Level</p>
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Score Risiko Terkini</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Inherent: {inherentScore} - Residual: {residualScoreRaw} = {finalResidualScore}
+                Score Inheren: {inherentScore}/25 → Score Risiko Terkini: {currentScore > 0 ? currentScore : inherentScore}/25
+                {currentLevel && (
+                  <span className="ml-2">
+                    ({currentLevel})
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <RiskLevelBadge score={finalResidualScore} />
-              <span className="text-lg font-bold text-gray-900 dark:text-white">{finalResidualScore}/25</span>
+              {currentScore > 0 && currentLevel && (
+                <RiskLevelBadge score={currentScore} />
+              )}
+              <span className="text-lg font-bold text-gray-900 dark:text-white">
+                {currentScore > 0 ? currentScore : inherentScore}/25
+              </span>
             </div>
           </div>
         </div>
@@ -430,15 +433,46 @@ export default function MitigationPlanForm({
           onClick={onCancel}
           className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
         >
-          Cancel
+          Batal
         </button>
+        {onRequestEvaluation && (
+          <button
+            type="button"
+            onClick={() => {
+              setNotification({
+                isOpen: true,
+                type: 'confirm',
+                title: 'Konfirmasi Ajukan Evaluasi',
+                message: 'Apakah Anda yakin ingin mengajukan evaluasi keberhasilan untuk risiko ini?',
+                onConfirm: () => {
+                  onRequestEvaluation(risk);
+                },
+              });
+            }}
+            className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-white bg-[#ffc107] rounded-lg hover:bg-[#e0a800] transition-colors"
+          >
+            Ajukan Evaluasi
+          </button>
+        )}
         <button
           type="submit"
           className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-white bg-[#0d6efd] rounded-lg hover:bg-blue-600 transition-colors"
         >
-          Save Mitigation Plan
+          Simpan Rencana Mitigasi
         </button>
       </div>
+
+      {/* Notification Popup */}
+      <NotificationPopup
+        isOpen={notification.isOpen}
+        onClose={() => setNotification({ ...notification, isOpen: false })}
+        onConfirm={notification.onConfirm}
+        type={notification.type}
+        title={notification.title}
+        message={notification.message}
+        confirmText="Ya"
+        cancelText="Tidak"
+      />
     </form>
   );
 }

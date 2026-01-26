@@ -115,8 +115,8 @@ export default function Card({
       {/* Card Body */}
       <div 
         className={`
-          transition-all duration-300 overflow-hidden
-          ${isCollapsed ? 'max-h-0' : 'max-h-[2000px]'}
+          transition-all duration-300
+          ${isCollapsed ? 'max-h-0 overflow-hidden' : 'max-h-none'}
         `}
       >
         <div className={`p-4 ${bodyClassName}`}>

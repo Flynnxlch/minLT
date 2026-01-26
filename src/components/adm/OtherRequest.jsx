@@ -85,21 +85,21 @@ export default function OtherRequest({ onApprove, onReject }) {
   };
 
   return (
-    <Card title="Other Requests" collapsible>
+    <Card title="Permintaan Lainnya">
       {requests.length === 0 ? (
         <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
-          No pending requests.
+          Tidak ada permintaan yang tertunda.
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 dark:border-(--color-card-border-dark)">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Type</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">User</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Jenis</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Pengguna</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Detail</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Requested At</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Actions</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Diminta Pada</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -129,19 +129,19 @@ export default function OtherRequest({ onApprove, onReject }) {
                         type="button"
                         onClick={() => handleApprove(request.id)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#198754] rounded-lg hover:bg-[#157347] transition-colors shadow-sm"
-                        title="Approve Request"
+                        title="Setujui Permintaan"
                       >
                         <i className="bi bi-check-circle"></i>
-                        <span className="hidden sm:inline">Approve</span>
+                        <span className="hidden sm:inline">Setujui</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => handleReject(request.id)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#dc3545] rounded-lg hover:bg-[#bb2d3b] transition-colors shadow-sm"
-                        title="Reject Request"
+                        title="Tolak Permintaan"
                       >
                         <i className="bi bi-x-circle"></i>
-                        <span className="hidden sm:inline">Reject</span>
+                        <span className="hidden sm:inline">Tolak</span>
                       </button>
                     </div>
                   </td>

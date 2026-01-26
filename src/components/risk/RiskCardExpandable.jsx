@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRiskLevel } from '../../utils/risk';
 import { getRiskStatus, RISK_STATUS_CONFIG } from '../../utils/riskStatus';
+import { getCabangLabel, getCabangCode } from '../../utils/cabang';
+import DeleteConfirmModal from '../ui/DeleteConfirmModal';
 import RiskLevelBadge from './RiskLevelBadge';
 import RiskScoreBar from './RiskScoreBar';
-import DeleteConfirmModal from '../ui/DeleteConfirmModal';
 
 function truncateText(value, maxChars) {
   const s = String(value ?? '');
@@ -23,8 +24,9 @@ export default function RiskCardExpandable({
   showScoreBar = false,
   showRemoveButton = false,
   showEvaluateButton = false,
-  showLocation = true,
+  showActionButtons = true, // Controls Analyze and Mitigate buttons
   showEvaluationMonth = true,
+  showRiskLevelText = true, // Show risk level text below category (default: true)
   riskEventMaxLength = 18,
   clickable = false,
   onRemove,
@@ -73,7 +75,7 @@ export default function RiskCardExpandable({
                   <span className="text-xs text-gray-400 dark:text-gray-500">|</span>
                 )}
                 {risk.regionCode && (
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{risk.regionCode}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{getCabangLabel(risk.regionCode)}</span>
                 )}
               </div>
             )}
@@ -89,24 +91,46 @@ export default function RiskCardExpandable({
             <div className="mt-1 space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
               {risk.division && (
                 <div>
-                  Division: <span className="font-semibold text-gray-700 dark:text-gray-200">{risk.division}</span>
+                  Divisi: <span className="font-semibold text-gray-700 dark:text-gray-200">{risk.division}</span>
                 </div>
               )}
               {(risk.category || risk.riskCategory) && (
                 <div>
-                  Category: <span className="font-semibold text-gray-700 dark:text-gray-200">{risk.category || risk.riskCategory}</span>
+                  Kategori: <span className="font-semibold text-gray-700 dark:text-gray-200">{risk.category || risk.riskCategory}</span>
                 </div>
               )}
-              {/* Risk Level - only show if score > 0 and status is not open-risk */}
-              {(() => {
-                // Don't show if status is open-risk or score is 0 or falsy
-                if (riskStatus === 'open-risk' || !risk.score || risk.score <= 0) {
+              {/* Risk Level - only show if score > 0, status is not open-risk, and showRiskLevelText is true */}
+              {showRiskLevelText && (() => {
+                // Don't show if status is open-risk
+                if (riskStatus === 'open-risk') {
                   return null;
                 }
-                const riskLevel = getRiskLevel(risk.score);
+                
+                // Determine which score to show based on status
+                let displayScore = 0;
+                let labelText = 'Risk Level';
+                
+                if (riskStatus === 'analyzed') {
+                  // After Risk Analysis: show Inherent Risk
+                  displayScore = Number(risk.inherentScore ?? risk.score ?? 0);
+                  labelText = 'Tingkat Risiko Inheren';
+                } else if (['planned', 'mitigated', 'not-finished'].includes(riskStatus)) {
+                  // After Mitigation Plan: show Current Risk (Residual)
+                  displayScore = Number(risk.currentScore ?? risk.residualScore ?? risk.residualScoreFinal ?? 0);
+                  labelText = 'Tingkat Risiko Residual';
+                } else {
+                  // Fallback to score
+                  displayScore = Number(risk.score ?? 0);
+                }
+                
+                if (!displayScore || displayScore <= 0) {
+                  return null;
+                }
+                
+                const riskLevel = getRiskLevel(displayScore);
                 return riskLevel ? (
                   <div>
-                    Risk Level: <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${riskLevel.badgeClass}`}>
+                    {labelText}: <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${riskLevel.badgeClass}`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${riskLevel.dotClass}`} />
                       <span>{riskLevel.label}</span>
                     </span>
@@ -131,8 +155,54 @@ export default function RiskCardExpandable({
 
           {/* Right side: Badge, Score Bar, Action Buttons */}
           <div className="flex flex-col items-end gap-2 shrink-0">
-            {showRiskLevel && risk.score && risk.score > 0 && riskStatus !== 'open-risk' && <RiskLevelBadge score={risk.score} />}
-            {showScoreBar && <RiskScoreBar score={risk.score} className="w-28" />}
+            {/* Badge container - can expand based on label length */}
+            {/* Only show badge if score exists, is > 0, and status is not open-risk */}
+            {showRiskLevel && riskStatus !== 'open-risk' && (() => {
+              // Determine which score to show based on status
+              let badgeScore = 0;
+              
+              if (riskStatus === 'analyzed') {
+                // After Risk Analysis: show Inherent Risk
+                badgeScore = Number(risk.inherentScore ?? risk.score ?? 0);
+              } else if (['planned', 'mitigated', 'not-finished'].includes(riskStatus)) {
+                // After Mitigation Plan: show Current Risk (Residual)
+                badgeScore = Number(risk.currentScore ?? risk.residualScore ?? risk.residualScoreFinal ?? 0);
+              } else {
+                // Fallback to score
+                badgeScore = Number(risk.score ?? 0);
+              }
+              
+              if (!badgeScore || isNaN(badgeScore) || badgeScore <= 0) return null;
+              return (
+                <div className="flex justify-end">
+                  <RiskLevelBadge score={badgeScore} />
+                </div>
+              );
+            })()}
+            {/* Score bar container - fixed width, separate from badge */}
+            {/* Only show score bar if score exists, is > 0, and status is not open-risk */}
+            {showScoreBar && riskStatus !== 'open-risk' && (() => {
+              // Determine which score to show based on status
+              let barScore = 0;
+              
+              if (riskStatus === 'analyzed') {
+                // After Risk Analysis: show Inherent Risk
+                barScore = Number(risk.inherentScore ?? risk.score ?? 0);
+              } else if (['planned', 'mitigated', 'not-finished'].includes(riskStatus)) {
+                // After Mitigation Plan: show Current Risk (Residual)
+                barScore = Number(risk.currentScore ?? risk.residualScore ?? risk.residualScoreFinal ?? 0);
+              } else {
+                // Fallback to score
+                barScore = Number(risk.score ?? 0);
+              }
+              
+              if (!barScore || isNaN(barScore) || barScore <= 0) return null;
+              return (
+                <div className="w-28 shrink-0">
+                  <RiskScoreBar score={barScore} />
+                </div>
+              );
+            })()}
 
             {/* Remove Button */}
             {showRemoveButton && onRemove && (
@@ -151,7 +221,7 @@ export default function RiskCardExpandable({
             )}
 
             {/* Action buttons based on status */}
-            {showEvaluateButton && riskStatus === 'open-risk' && (
+            {showActionButtons && riskStatus === 'open-risk' && (
               <Link
                 to={`/risks/${risk.id}/risk-analysis`}
                 onClick={(e) => e.stopPropagation()}
@@ -162,7 +232,7 @@ export default function RiskCardExpandable({
                 <span className="hidden sm:inline">Analyze</span>
               </Link>
             )}
-            {showEvaluateButton && (riskStatus === 'analyzed' || riskStatus === 'not-finished') && (
+            {showActionButtons && (riskStatus === 'analyzed' || riskStatus === 'planned' || riskStatus === 'not-finished') && !risk.evaluationRequested && (
               <Link
                 to={`/risks/${risk.id}/mitigation-plan`}
                 onClick={(e) => e.stopPropagation()}
@@ -195,40 +265,63 @@ export default function RiskCardExpandable({
           <div className="border-l-4 border-blue-500 pl-3">
             <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
               <i className="bi bi-clipboard-data mr-2 text-blue-500"></i>
-              Risk Identified
+              Resiko Teridentifikasi
             </div>
             <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
-              <div>
-                <span className="font-semibold">Risk Event:</span> {risk.riskEvent || risk.title || 'N/A'}
-              </div>
+              {/* Nama Perusahaan & Divisi */}
+              {risk.organization && (
+                <div>
+                  <span className="font-semibold">Nama Perusahaan:</span> {risk.organization}
+                </div>
+              )}
+              {risk.division && (
+                <div>
+                  <span className="font-semibold">Divisi:</span> {risk.division}
+                </div>
+              )}
+              {/* Sasaran & Cabang */}
               {risk.target && (
                 <div>
-                  <span className="font-semibold">Target:</span> {risk.target}
+                  <span className="font-semibold">Sasaran:</span> {risk.target}
                 </div>
               )}
-              {risk.activity && (
+              {risk.regionCode && (
                 <div>
-                  <span className="font-semibold">Activity:</span> {risk.activity}
+                  <span className="font-semibold">Cabang:</span> {getCabangCode(risk.regionCode)}
                 </div>
               )}
-              {risk.riskCause && (
+              {/* Peristiwa Risiko */}
+              <div>
+                <span className="font-semibold">Peristiwa Resiko:</span> {risk.riskEvent || risk.title || 'N/A'}
+              </div>
+              {/* Deskripsi Peristiwa Risiko */}
+              {risk.riskEventDescription && (
                 <div>
-                  <span className="font-semibold">Risk Cause:</span> {risk.riskCause}
+                  <span className="font-semibold">Deskripsi Peristiwa Resiko:</span> {risk.riskEventDescription}
                 </div>
               )}
+              {/* Kategori */}
               {(risk.category || risk.riskCategory) && (
                 <div>
-                  <span className="font-semibold">Risk Category:</span> {risk.category || risk.riskCategory}
+                  <span className="font-semibold">Kategori:</span> {risk.category || risk.riskCategory}
                 </div>
               )}
+              {/* Penyebab Risiko */}
+              {risk.riskCause && (
+                <div>
+                  <span className="font-semibold">Penyebab Resiko:</span> {risk.riskCause}
+                </div>
+              )}
+              {/* Kategori Resiko */}
+              {risk.riskCategoryType && (
+                <div>
+                  <span className="font-semibold">Kategori Resiko:</span> {risk.riskCategoryType}
+                </div>
+              )}
+              {/* Deskripsi Dampak */}
               {risk.riskImpactExplanation && (
                 <div>
-                  <span className="font-semibold">Risk Impact Explanation:</span> {risk.riskImpactExplanation}
-                </div>
-              )}
-              {risk.quantitativeRiskImpact && (
-                <div>
-                  <span className="font-semibold">Risk Impact:</span> {risk.quantitativeRiskImpact}
+                  <span className="font-semibold">Deskripsi Dampak:</span> {risk.riskImpactExplanation}
                 </div>
               )}
             </div>
@@ -239,25 +332,27 @@ export default function RiskCardExpandable({
             <div className="border-l-4 border-green-500 pl-3">
               <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
                 <i className="bi bi-graph-up mr-2 text-green-500"></i>
-                Risk Analysis
+                Analisis Resiko
               </div>
               <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
                 {risk.impactDescription && (
                   <div>
-                    <span className="font-semibold">Impact Description:</span> {risk.impactDescription}
+                    <span className="font-semibold">Penjelasan Dampak:</span> {risk.impactDescription}
                   </div>
                 )}
                 {risk.possibilityDescription && (
                   <div>
-                    <span className="font-semibold">Probability Description:</span> {risk.possibilityDescription}
+                    <span className="font-semibold">Penjelasan Kemungkinan:</span> {risk.possibilityDescription}
                   </div>
                 )}
-                <div>
-                  <span className="font-semibold">Risk Score:</span> {risk.score || 0}/25
-                  <span className="ml-2 text-xs">
-                    (Probability: {risk.possibility || risk.possibilityType || 0} × Impact: {risk.impact || risk.impactLevel || 0})
-                  </span>
-                </div>
+                {(risk.score && risk.score > 0) && (
+                  <div>
+                    <span className="font-semibold">Skor Resiko:</span> {risk.score}/25
+                    <span className="ml-2 text-xs">
+                      (Possibility: {risk.possibility || risk.possibilityType || 0} × Impact: {risk.impact || risk.impactLevel || 0})
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -267,27 +362,27 @@ export default function RiskCardExpandable({
             <div className="border-l-4 border-yellow-500 pl-3">
               <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
                 <i className="bi bi-shield-check mr-2 text-yellow-500"></i>
-                Mitigation Planning
+                Perencanaan Mitigasi
               </div>
               <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
                 {risk.mitigationPlan && (
                   <div>
-                    <span className="font-semibold">Mitigation Plan:</span> {risk.mitigationPlan}
+                    <span className="font-semibold">Rencana Mitigasi:</span> {risk.mitigationPlan}
                   </div>
                 )}
                 {risk.residualImpactDescription && (
                   <div>
-                    <span className="font-semibold">Residual Impact:</span> {risk.residualImpactDescription}
+                    <span className="font-semibold">Dampak Residual:</span> {risk.residualImpactDescription}
                   </div>
                 )}
                 {risk.residualProbabilityDescription && (
                   <div>
-                    <span className="font-semibold">Residual Probability:</span> {risk.residualProbabilityDescription}
+                    <span className="font-semibold">Kemungkinan Residual:</span> {risk.residualProbabilityDescription}
                   </div>
                 )}
                 {risk.evaluationMonth && (
                   <div>
-                    <span className="font-semibold">Evaluation Month:</span> {risk.evaluationMonth}
+                    <span className="font-semibold">Bulan Evaluasi:</span> {risk.evaluationMonth}
                   </div>
                 )}
               </div>
@@ -299,27 +394,27 @@ export default function RiskCardExpandable({
             <div className="border-l-4 border-purple-500 pl-3">
               <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
                 <i className="bi bi-calendar-check mr-2 text-purple-500"></i>
-                Monthly Evaluation
+                Evaluasi Keberhasilan
               </div>
               <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
                 {risk.evaluationStatus && (
                   <div>
-                    <span className="font-semibold">Status:</span> {risk.evaluationStatus}
+                    <span className="font-semibold">Status Evaluasi:</span> {risk.evaluationStatus}
                   </div>
                 )}
                 {risk.evaluationNotes && (
                   <div>
-                    <span className="font-semibold">Notes:</span> {risk.evaluationNotes}
+                    <span className="font-semibold">Catatan Evaluasi:</span> {risk.evaluationNotes}
                   </div>
                 )}
                 {risk.evaluator && (
                   <div>
-                    <span className="font-semibold">Evaluator:</span> {risk.evaluator}
+                    <span className="font-semibold">Pembuat Evaluasi:</span> {risk.evaluator}
                   </div>
                 )}
                 {risk.evaluationDate && (
                   <div>
-                    <span className="font-semibold">Date:</span> {risk.evaluationDate}
+                    <span className="font-semibold">Tanggal Evaluasi:</span> {risk.evaluationDate}
                   </div>
                 )}
               </div>

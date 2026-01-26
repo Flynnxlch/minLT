@@ -1,10 +1,10 @@
+/* Source Sans 3 font import - must be at top for PostCSS */
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+
 @import "tailwindcss";
 
 /* Tailwind v4: make `dark:` variant respond to `.dark` class (theme toggle). */
 @custom-variant dark (&:where(.dark, .dark *));
-
-/* Source Sans 3 font import */
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
 
 /* AdminLTE Theme Variables */
 :root {

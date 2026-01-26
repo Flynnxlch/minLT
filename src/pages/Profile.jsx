@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import ContentHeader from '../components/ui/ContentHeader';
+import UserIcon from '../components/ui/UserIcon';
 import { Card } from '../components/widgets';
 import { useAuth } from '../context/AuthContext';
-import UserIcon from '../components/ui/UserIcon';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -41,15 +41,15 @@ export default function Profile() {
     const newErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = 'Nama wajib diisi';
     }
 
     if (formData.password && formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = 'Kata sandi minimal 6 karakter';
     }
 
     if (formData.password && formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = 'Kata sandi tidak cocok';
     }
 
     setErrors(newErrors);
@@ -83,22 +83,22 @@ export default function Profile() {
   return (
     <>
       <ContentHeader
-        title="Profile"
+        title="Profil"
         breadcrumbs={[
-          { label: 'Home', path: '/' },
-          { label: 'Profile' },
+          { label: 'Beranda', path: '/' },
+          { label: 'Profil' },
         ]}
       />
 
-      <Card title="User Profile" collapsible>
+      <Card title="Profil Pengguna">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
           <div className="relative shrink-0">
             {formData.profilePicture ? (
-              <img
+            <img
                 src={formData.profilePicture}
-                alt={user?.name}
-                className="w-24 h-24 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600"
-              />
+              alt={user?.name}
+              className="w-24 h-24 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600"
+            />
             ) : (
               <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-4 border-gray-200 dark:border-gray-600">
                 <UserIcon className="w-14 h-14 text-gray-600 dark:text-gray-300" fill="currentColor" />
@@ -116,7 +116,7 @@ export default function Profile() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-[#0c9361] hover:bg-[#0a7a4f] text-white font-semibold rounded-lg transition-colors shadow-sm"
             >
               <i className="bi bi-pencil"></i>
-              <span>Edit Profile</span>
+              <span>Edit Profil</span>
             </button>
           </div>
         </div>
@@ -133,7 +133,7 @@ export default function Profile() {
             >
               {/* Popup Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-(--color-card-border-dark)">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Edit Profile</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Edit Profil</h3>
                 <button
                   type="button"
                   onClick={() => setShowProfilePopup(false)}
@@ -148,15 +148,15 @@ export default function Profile() {
                 {/* Profile Picture */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Profile Picture
+                    Foto Profil
                   </label>
                   <div className="flex flex-col sm:flex-row items-center gap-4">
                     {formData.profilePicture ? (
-                      <img
-                        src={formData.profilePicture}
-                        alt="Profile"
-                        className="w-20 h-20 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600 shrink-0"
-                      />
+                    <img
+                      src={formData.profilePicture}
+                      alt="Profile"
+                      className="w-20 h-20 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600 shrink-0"
+                    />
                     ) : (
                       <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 shrink-0">
                         <UserIcon className="w-12 h-12 text-gray-600 dark:text-gray-300" fill="currentColor" />
@@ -202,7 +202,7 @@ export default function Profile() {
                     disabled
                     className={`${inputBase} bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed border-gray-300 dark:border-gray-600`}
                   />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Cabang cannot be changed</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Cabang tidak dapat diubah</p>
                 </div>
 
                 {/* NIP (Read-only) */}
@@ -216,13 +216,13 @@ export default function Profile() {
                     disabled
                     className={`${inputBase} bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed border-gray-300 dark:border-gray-600`}
                   />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">NIP cannot be changed</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">NIP tidak dapat diubah</p>
                 </div>
 
                 {/* Password */}
                 <div>
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    New Password (leave blank to keep current)
+                    Kata Sandi Baru (kosongkan untuk mempertahankan kata sandi saat ini)
                   </label>
                   <div className="relative">
                     <input
@@ -232,7 +232,7 @@ export default function Profile() {
                       value={formData.password}
                       onChange={handleChange}
                       className={`${inputBase} pr-12 ${errors.password ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-                      placeholder="Enter new password"
+                      placeholder="Masukkan kata sandi baru"
                     />
                     <button
                       type="button"
@@ -249,7 +249,7 @@ export default function Profile() {
                 {formData.password && (
                   <div>
                     <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Confirm New Password
+                      Konfirmasi Kata Sandi Baru
                     </label>
                     <div className="relative">
                       <input
@@ -259,7 +259,7 @@ export default function Profile() {
                         value={formData.confirmPassword}
                         onChange={handleChange}
                         className={`${inputBase} pr-12 ${errors.confirmPassword ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-                        placeholder="Confirm new password"
+                        placeholder="Konfirmasi kata sandi baru"
                       />
                       <button
                         type="button"
@@ -280,14 +280,14 @@ export default function Profile() {
                     onClick={() => setShowProfilePopup(false)}
                     className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                   >
-                    Cancel
+                    Batal
                   </button>
                   <button
                     type="submit"
                     disabled={isLoading}
                     className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-white bg-[#0c9361] rounded-lg hover:bg-[#0a7a4f] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isLoading ? 'Saving...' : 'Save Changes'}
+                    {isLoading ? 'Menyimpan...' : 'Simpan Perubahan'}
                   </button>
                 </div>
               </form>

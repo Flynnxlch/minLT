@@ -12,16 +12,16 @@ export default function Reports() {
   return (
     <>
       <ContentHeader
-        title="Reports & Analytics"
+        title="Laporan & Analitik"
         breadcrumbs={[
-          { label: 'Home', path: '/' },
-          { label: 'Reports & Analytics' },
+          { label: 'Beranda', path: '/' },
+          { label: 'Laporan & Analitik' },
         ]}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div className="lg:col-span-7">
-          <Card title="Risk Level Distribution" collapsible>
+          <Card title="Distribusi Tingkat Risiko">
             <div className="space-y-3">
               {RISK_LEVELS.map((lvl) => {
                 const count = summary.counts[lvl.key] || 0;
@@ -46,11 +46,11 @@ export default function Reports() {
         </div>
 
         <div className="lg:col-span-5">
-          <Card title="Average Risk Score" collapsible>
+          <Card title="Skor Risiko Rata-rata">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-4xl font-semibold text-gray-700 dark:text-gray-200">{summary.avgScore}</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Avg score across all risks</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Skor rata-rata dari semua risiko</div>
               </div>
               <RiskScoreBar score={summary.avgScore} className="w-48" />
             </div>

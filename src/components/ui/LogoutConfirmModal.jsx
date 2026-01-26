@@ -1,7 +1,30 @@
+import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
+
 export default function LogoutConfirmModal({ isOpen, onClose, onConfirm }) {
+  // Handle escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscape);
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = 'hidden';
+    
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <>
       <div 
         className="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 transition-opacity backdrop-blur-sm" 
@@ -11,6 +34,10 @@ export default function LogoutConfirmModal({ isOpen, onClose, onConfirm }) {
         <div
           className="w-full max-w-md bg-white dark:bg-[var(--color-card-bg-dark)] rounded-lg shadow-2xl border border-gray-200 dark:border-[var(--color-card-border-dark)] pointer-events-auto"
           onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="logout-modal-title"
+          aria-describedby="logout-modal-description"
         >
           <div className="p-6">
             {/* Icon */}
@@ -21,13 +48,13 @@ export default function LogoutConfirmModal({ isOpen, onClose, onConfirm }) {
             </div>
 
             {/* Title */}
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white text-center mb-2">
-              Confirm Logout
+            <h3 id="logout-modal-title" className="text-lg font-semibold text-gray-900 dark:text-white text-center mb-2">
+              Konfirmasi Keluar
             </h3>
 
             {/* Description */}
-            <p className="text-sm text-gray-600 dark:text-gray-300 text-center mb-6">
-              Are you sure you want to logout? You will need to sign in again to access your account.
+            <p id="logout-modal-description" className="text-sm text-gray-600 dark:text-gray-300 text-center mb-6">
+              Apakah Anda yakin ingin keluar? Anda perlu masuk lagi untuk mengakses akun Anda.
             </p>
 
             {/* Buttons */}
@@ -37,14 +64,14 @@ export default function LogoutConfirmModal({ isOpen, onClose, onConfirm }) {
                 onClick={onClose}
                 className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
               >
-                Cancel
+                Batal
               </button>
               <button
                 type="button"
                 onClick={onConfirm}
                 className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-white bg-red-600 dark:bg-red-500 rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors"
               >
-                Logout
+                Keluar
               </button>
             </div>
           </div>
@@ -52,4 +79,7 @@ export default function LogoutConfirmModal({ isOpen, onClose, onConfirm }) {
       </div>
     </>
   );
+
+  // Use portal to render modal at body level, avoiding any parent positioning issues
+  return createPortal(modalContent, document.body);
 }

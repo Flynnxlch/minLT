@@ -5,8 +5,8 @@
  * - "Open Risk" - when score is 0/null (not analyzed yet)
  * - "Analyzed" - when risk-analysis is completed (has score > 0, but no mitigation plan)
  * - "Planned" - when mitigation plan is created (has mitigationPlan)
- * - "Mitigated" - when monthly evaluation is completed and effective (evaluationStatus = 'effective')
- * - "Not Finished" - when monthly evaluation is completed but not effective (evaluationStatus != 'effective')
+ * - "Mitigated" - when evaluation keberhasilan is completed and effective (evaluationStatus = 'effective')
+ * - "Need Improvement" - when evaluation keberhasilan is completed but not effective (evaluationStatus != 'effective')
  */
 export function getRiskStatus(risk) {
   if (!risk) return 'open-risk';
@@ -20,7 +20,7 @@ export function getRiskStatus(risk) {
     return 'open-risk';
   }
 
-  // If has evaluation status, check if mitigated or not finished
+  // If has evaluation status, check if mitigated or need improvement
   if (evaluationStatus) {
     if (evaluationStatus === 'effective') {
       return 'mitigated';
@@ -60,7 +60,7 @@ export const RISK_STATUS_CONFIG = {
     description: 'Mitigation completed and effective',
   },
   'not-finished': {
-    label: 'Not Finished',
+    label: 'Need Improvement',
     badgeClass: 'bg-orange-100 text-orange-800 ring-1 ring-inset ring-orange-200 dark:bg-orange-900/30 dark:text-orange-300',
     description: 'Mitigation not yet effective',
   },

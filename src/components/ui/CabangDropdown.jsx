@@ -1,45 +1,46 @@
 import { useEffect, useRef, useState } from 'react';
 
 const CABANG_OPTIONS = [
-  { code: 'KPS', label: 'KPS' },
-  { code: 'CGK', label: 'CGK' },
-  { code: 'HLP', label: 'HLP' },
-  { code: 'YIA', label: 'YIA' },
-  { code: 'DPS', label: 'DPS' },
-  { code: 'SUB', label: 'SUB' },
-  { code: 'KNO', label: 'KNO' },
-  { code: 'UPG', label: 'UPG' },
-  { code: 'AAP', label: 'AAP' },
-  { code: 'AMQ', label: 'AMQ' },
-  { code: 'BDJ', label: 'BDJ' },
-  { code: 'BDO', label: 'BDO' },
-  { code: 'BIK', label: 'BIK' },
-  { code: 'BKS', label: 'BKS' },
-  { code: 'BPN', label: 'BPN' },
-  { code: 'BTH', label: 'BTH' },
-  { code: 'BTJ', label: 'BTJ' },
-  { code: 'BWX', label: 'BWX' },
-  { code: 'DJB', label: 'DJB' },
-  { code: 'DJJ', label: 'DJJ' },
-  { code: 'DTB', label: 'DTB' },
-  { code: 'JOG', label: 'JOG' },
-  { code: 'KJT', label: 'KJT' },
-  { code: 'KOE', label: 'KOE' },
-  { code: 'LBJ', label: 'LBJ' },
-  { code: 'LOP', label: 'LOP' },
-  { code: 'MDC', label: 'MDC' },
-  { code: 'MKQ', label: 'MKQ' },
-  { code: 'MKW', label: 'MKW' },
-  { code: 'PDG', label: 'PDG' },
-  { code: 'PGK', label: 'PGK' },
-  { code: 'PLU', label: 'PLU' },
-  { code: 'PNM', label: 'PNM' },
-  { code: 'PNK', label: 'PNK' },
-  { code: 'SOC', label: 'SOC' },
-  { code: 'SRG', label: 'SRG' },
-  { code: 'TJQ', label: 'TJQ' },
-  { code: 'TKG', label: 'TKG' },
-  { code: 'TNJ', label: 'TNJ' },
+  { code: 'Kantor Pusat', label: 'KPS' },
+  { code: 'SBU Cargo & Warehouse', label: 'CGO' },
+  { code: 'HUB Bandara Internasional Soekarno-Hatta, Cengkareng', label: 'CGK' },
+  { code: 'HUB Bandara Internasional Ngurah Rai, Denpasar', label: 'DPS' },
+  { code: 'HUB Bandara Internasional Juanda, Surabaya', label: 'SUB' },
+  { code: 'HUB Bandara Internasional Sultan Hasanuddin, Makassar', label: 'UPG' },
+  { code: 'HUB Bandara Internasional Kualanamu, Medan', label: 'KNO' },
+  { code: 'SPOKE Bandara Internasional APT Pranoto, Samarinda', label: 'AAP' },
+  { code: 'SPOKE Bandara Internasional Pattimura, Ambon', label: 'AMQ' },
+  { code: 'SPOKE Bandara Internasional Syamsudin Noor, Banjarmasin', label: 'BDJ' },
+  { code: 'SPOKE Bandara Fatmawati Soekarno, Bengkulu', label: 'BKS' },
+  { code: 'SPOKE Bandara Internasional Sepinggan, Balikpapan', label: 'BPN' },
+  { code: 'SPOKE Bandara Internasional Hang Nadim, Batam', label: 'BTH' },
+  { code: 'SPOKE Bandara Internasional Sultan Iskandar Muda, Banda Aceh', label: 'BTJ' },
+  { code: 'SPOKE Bandara Internasional Blimbingsari, Banyuwangi', label: 'BWX' },
+  { code: 'SPOKE Bandara Sultan Thaha, Jambi', label: 'DJB' },
+  { code: 'SPOKE Bandara Internasional Sentani, Jayapura', label: 'DJJ' },
+  { code: 'SPOKE Bandara Sisingamangaraja XII, Silangitgns', label: 'DTB' },
+  { code: 'SPOKE Bandara Dr. Ferdinand Lumban Tobing, Sibolga', label: 'FLZ' },
+  { code: 'SPOKE Bandara Binaka, Gunung Sitoli', label: 'GNS' },
+  { code: 'SPOKE Bandara Internasional Halim Perdanakusuma, Jakarta', label: 'HLP' },
+  { code: 'SPOKE Bandara Internasional Yogyakarta, Kulon Progo', label: 'YIA' },
+  { code: 'SPOKE Bandara Internasional El Tari, Kupang', label: 'KOE' },
+  { code: 'SPOKE Bandara Komodo, Labuan Bajo', label: 'LBJ' },
+  { code: 'SPOKE Bandara Internasional Lombok Praya, Mataram', label: 'LOP' },
+  { code: 'SPOKE Bandara Internasional Sam Ratulangi, Manado', label: 'MDC' },
+  { code: 'SPOKE Bandara Internasional Mopah, Merauke', label: 'MKQ' },
+  { code: 'SPOKE Bandara Rendani, Manokwari', label: 'MKW' },
+  { code: 'SPOKE Bandara Internasional Minangkabau, Padang', label: 'PDG' },
+  { code: 'SPOKE Bandara Depati Amir, Pangkal Pinang', label: 'PGK' },
+  { code: 'SPOKE Bandara Internasional Syarif Kasim II, Pekanbaru', label: 'PKU' },
+  { code: 'SPOKE Bandara Internasional SM Badaruddin II, Palembang', label: 'PLM' },
+  { code: 'SPOKE Bandara Internasional Supadio, Pontianak', label: 'PNK' },
+  { code: 'SPOKE Bandara Internasional Adisumarmo, Solo', label: 'SOC' },
+  { code: 'SPOKE Bandara Internasional Jenderal Ahmad Yani, Semarang', label: 'SRG' },
+  { code: 'SPOKE Bandara H.A.S Hanandjoeddin, Tanjung Pandan', label: 'TJQ' },
+  { code: 'SPOKE Bandara Internasional Raden Inten II, Bandar Lampung', label: 'TKG' },
+  { code: 'SPOKE Bandara Internasional Raja Haji Fisabilillah, Tanjung Pinang', label: 'TNJ' },
+  { code: 'Station Representative Bandara Internasional Frans Kaisieppo, Biak', label: 'BIK' },
+  { code: 'Station Representative Bandara Internasional Kertajati, Majalengka', label: 'KJT' },
 ];
 
 export default function CabangDropdown({ value, onChange, error = false, openUpward = false }) {
@@ -47,7 +48,8 @@ export default function CabangDropdown({ value, onChange, error = false, openUpw
   const dropdownRef = useRef(null);
   const listRef = useRef(null);
 
-  const selectedOption = CABANG_OPTIONS.find(opt => opt.code === value) || CABANG_OPTIONS[0];
+  // Support both label (short code) and code (full name) for backward compatibility
+  const selectedOption = CABANG_OPTIONS.find(opt => opt.label === value || opt.code === value) || CABANG_OPTIONS[0];
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -66,12 +68,14 @@ export default function CabangDropdown({ value, onChange, error = false, openUpw
   }, [isOpen]);
 
   const handleSelect = (option) => {
-    onChange(option.code);
+    // Send label (short code) instead of code (full name) for regionCode
+    // This matches the keys in CABANG_SPECIFIC_DIVISIONS
+    onChange(option.label);
     setIsOpen(false);
   };
 
-  const inputBase = 'w-full pl-4 pr-10 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#0c9361] dark:focus:ring-[#0c9361] focus:border-[#0c9361] dark:focus:border-[#0c9361] transition-colors box-border';
-  const borderClass = error ? 'border-red-500 dark:border-red-500' : 'border-gray-200 dark:border-gray-600';
+  const inputBase = 'w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700/50 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors';
+  const borderClass = error ? 'border-red-500 dark:border-red-500' : '';
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -81,7 +85,7 @@ export default function CabangDropdown({ value, onChange, error = false, openUpw
           onClick={() => setIsOpen(!isOpen)}
           className={`${inputBase} ${borderClass} text-left cursor-pointer pr-10`}
         >
-          <span className="block truncate">{selectedOption.label}</span>
+          <span className="block truncate text-sm">{selectedOption.label}</span>
         </button>
         <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
           <i className={`bi bi-chevron-down text-gray-400 dark:text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}></i>

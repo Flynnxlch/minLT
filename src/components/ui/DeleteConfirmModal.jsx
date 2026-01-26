@@ -1,4 +1,4 @@
-export default function DeleteConfirmModal({ isOpen, onClose, onConfirm, title = 'Confirm Delete', message, itemName }) {
+export default function DeleteConfirmModal({ isOpen, onClose, onConfirm, title = 'Konfirmasi Hapus', message, itemName }) {
   if (!isOpen) return null;
 
   return (
@@ -27,7 +27,7 @@ export default function DeleteConfirmModal({ isOpen, onClose, onConfirm, title =
 
             {/* Description */}
             <p className="text-sm text-gray-600 dark:text-gray-300 text-center mb-6">
-              {message || `Are you sure you want to delete ${itemName ? `"${itemName}"` : 'this item'}? This action cannot be undone.`}
+              {message || `Apakah Anda yakin ingin menghapus ${itemName ? `"${itemName}"` : 'item ini'}? Tindakan ini tidak dapat dibatalkan.`}
             </p>
 
             {/* Buttons */}
@@ -37,14 +37,14 @@ export default function DeleteConfirmModal({ isOpen, onClose, onConfirm, title =
                 onClick={onClose}
                 className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
               >
-                Cancel
+                Batal
               </button>
               <button
                 type="button"
                 onClick={onConfirm}
                 className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-white bg-red-600 dark:bg-red-500 rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors"
               >
-                Delete
+                Hapus
               </button>
             </div>
           </div>

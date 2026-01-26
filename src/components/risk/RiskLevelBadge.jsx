@@ -1,7 +1,14 @@
 import { getRiskLevel } from '../../utils/risk';
 
 export default function RiskLevelBadge({ score, className = '' }) {
-  const lvl = getRiskLevel(score);
+  // Don't render if score is invalid, 0, null, undefined, or falsy
+  if (score === null || score === undefined || score === '') return null;
+  
+  const numScore = Number(score);
+  // Check if conversion resulted in NaN or if score is <= 0
+  if (isNaN(numScore) || numScore <= 0) return null;
+
+  const lvl = getRiskLevel(numScore);
   if (!lvl) return null;
 
   return (
@@ -12,7 +19,7 @@ export default function RiskLevelBadge({ score, className = '' }) {
       <span className={`h-1.5 w-1.5 rounded-full ${lvl.dotClass}`} />
       <span>{lvl.label}</span>
       <span className="text-gray-600 dark:text-gray-300 font-medium">·</span>
-      <span className="font-semibold">{score}</span>
+      <span className="font-semibold">{numScore}</span>
       <span className="text-gray-600 dark:text-gray-300 font-medium">/25</span>
     </span>
   );
