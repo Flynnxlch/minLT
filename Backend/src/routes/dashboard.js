@@ -434,6 +434,23 @@ export function getDashboardHTML() {
         </div>
       </div>
       
+      <!-- Traffic Monitor Card -->
+      <div class="card full-width">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="bi bi-graph-up-arrow"></i>
+            Traffic Monitor
+          </div>
+          <span class="status-badge status-info" id="trafficTotalRequests">0</span>
+        </div>
+        <div id="trafficContent">
+          <div class="loading">
+            <i class="bi bi-arrow-clockwise"></i>
+            <div>Loading...</div>
+          </div>
+        </div>
+      </div>
+      
       <!-- Log History Card -->
       <div class="card full-width">
         <div class="card-header">
@@ -606,6 +623,130 @@ export function getDashboardHTML() {
           <div class="empty-state">
             <i class="bi bi-exclamation-triangle"></i>
             <div>Error loading sessions</div>
+          </div>
+        \`;
+      }
+    }
+    
+    // Load Traffic Statistics
+    async function loadTraffic() {
+      try {
+        const response = await fetch('/monitoring/traffic');
+        const data = await response.json();
+        
+        document.getElementById('trafficTotalRequests').textContent = data.summary.totalRequests.toLocaleString();
+        
+        const html = \`
+          <div style="margin-bottom: 20px;">
+            <div class="stat-grid">
+              <div class="stat-item">
+                <div class="stat-value">\${data.summary.totalRequests.toLocaleString()}</div>
+                <div class="stat-label">Total Requests</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">\${data.summary.requestsPerSecond.toFixed(2)}</div>
+                <div class="stat-label">Req/sec</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">\${data.summary.requestsPerMinute.toFixed(0)}</div>
+                <div class="stat-label">Req/min</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">\${data.summary.uniqueEndpoints}</div>
+                <div class="stat-label">Endpoints</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">\${data.summary.uniqueUsers}</div>
+                <div class="stat-label">Users</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">\${data.summary.uniqueIPs}</div>
+                <div class="stat-label">IP Addresses</div>
+              </div>
+            </div>
+            <div style="margin-top: 12px; font-size: 12px; color: #718096; text-align: center;">
+              Uptime: \${data.summary.uptimeFormatted} | Started: \${formatTime(data.summary.startTime)}
+            </div>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+            <!-- Top Endpoints -->
+            <div>
+              <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #2d3748;">Top Endpoints</h4>
+              <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                <table style="font-size: 12px;">
+                  <thead>
+                    <tr>
+                      <th>Endpoint</th>
+                      <th>Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    \${data.topEndpoints.map(item => \`
+                      <tr>
+                        <td><code style="font-size: 11px;">\${item.endpoint}</code></td>
+                        <td><strong>\${item.count.toLocaleString()}</strong></td>
+                      </tr>
+                    \`).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <!-- Top Users -->
+            <div>
+              <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #2d3748;">Top Users</h4>
+              <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                <table style="font-size: 12px;">
+                  <thead>
+                    <tr>
+                      <th>Email</th>
+                      <th>Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    \${data.topUsers.map(item => \`
+                      <tr>
+                        <td>\${item.email || 'N/A'}</td>
+                        <td><strong>\${item.count.toLocaleString()}</strong></td>
+                      </tr>
+                    \`).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <!-- Top IPs -->
+            <div>
+              <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #2d3748;">Top IP Addresses</h4>
+              <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                <table style="font-size: 12px;">
+                  <thead>
+                    <tr>
+                      <th>IP Address</th>
+                      <th>Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    \${data.topIPs.map(item => \`
+                      <tr>
+                        <td><code style="font-size: 11px;">\${item.ip}</code></td>
+                        <td><strong>\${item.count.toLocaleString()}</strong></td>
+                      </tr>
+                    \`).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        \`;
+        
+        document.getElementById('trafficContent').innerHTML = html;
+      } catch (error) {
+        document.getElementById('trafficContent').innerHTML = \`
+          <div class="empty-state">
+            <i class="bi bi-exclamation-triangle"></i>
+            <div>Error loading traffic data</div>
           </div>
         \`;
       }
@@ -815,6 +956,7 @@ export function getDashboardHTML() {
       await Promise.all([
         loadHealth(),
         loadSessions(),
+        loadTraffic(),
         loadDetection(),
         loadLogs()
       ]);

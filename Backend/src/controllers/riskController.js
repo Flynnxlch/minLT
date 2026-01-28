@@ -92,10 +92,29 @@ export const riskController = {
       }
 
       // Fetch all risks (for sorting by calculated score)
-      // We fetch all risks, calculate scores, then sort
+      // OPTIMIZED: Select only needed columns to reduce payload size and query time
       const allRisks = await prisma.risk.findMany({
         where,
-        include: {
+        select: {
+          // Risk table fields
+          id: true,
+          userId: true,
+          riskEvent: true,
+          title: true,
+          organization: true,
+          division: true,
+          target: true,
+          riskEventDescription: true,
+          riskCause: true,
+          riskImpactExplanation: true,
+          category: true,
+          riskCategoryType: true,
+          regionCode: true,
+          evaluationRequested: true,
+          evaluationRequestedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          // User relation - only needed fields
           user: {
             select: {
               id: true,
@@ -103,17 +122,79 @@ export const riskController = {
               email: true,
             },
           },
-          analysis: true,
-          mitigation: true,
+          // Analysis relation - only fields used in response
+          analysis: {
+            select: {
+              existingControl: true,
+              controlType: true,
+              controlLevel: true,
+              controlEffectivenessAssessment: true,
+              estimatedExposureDate: true,
+              keyRiskIndicator: true,
+              kriUnit: true,
+              kriValueSafe: true,
+              kriValueCaution: true,
+              kriValueDanger: true,
+              impactDescription: true,
+              impactLevel: true,
+              possibilityType: true,
+              possibilityDescription: true,
+              inherentScore: true,
+              inherentLevel: true,
+              residualImpactDescription: true,
+              residualImpactLevel: true,
+              residualPossibilityType: true,
+              residualPossibilityDescription: true,
+              residualScore: true,
+              residualLevel: true,
+              analyzedAt: true,
+            },
+          },
+          // Mitigation relation - only fields that actually exist in RiskMitigation model
+          mitigation: {
+            select: {
+              handlingType: true,
+              mitigationPlan: true,
+              mitigationOutput: true,
+              mitigationBudget: true,
+              mitigationActual: true,
+              progressMitigation: true,
+              realizationTarget: true,
+              targetKpi: true,
+              inherentScore: true,
+              // Note: residual fields (residualImpactDescription, residualScore, etc.) 
+              // are NOT in RiskMitigation - they only exist in RiskAnalysis
+              // The formatting code handles this with fallbacks to analysis values
+              currentImpactDescription: true,
+              currentImpactLevel: true,
+              currentProbabilityDescription: true,
+              currentProbabilityType: true,
+              currentScore: true,
+              currentLevel: true,
+              plannedAt: true,
+            },
+          },
+          // Evaluations - only latest one, only needed fields
           evaluations: {
+            select: {
+              evaluationStatus: true,
+              evaluationNotes: true,
+              evaluationDate: true,
+              evaluator: true,
+              evaluatorNote: true,
+              lastEvaluatedAt: true,
+              currentImpactDescription: true,
+              currentProbabilityDescription: true,
+            },
             orderBy: { lastEvaluatedAt: 'desc' },
             take: 1,
           },
         },
       });
 
-      // Transform and calculate scores
-      const risksWithScores = allRisks.map(risk => {
+      // OPTIMIZED: Combine score calculation, sorting, and formatting in one pass
+      // Pre-compute title for sorting to avoid repeated calculations
+      const risksWithMetadata = allRisks.map(risk => {
         // Calculate score and level - prioritize currentScore from mitigation, then inherentScore
         let score = 0;
         let level = null;
@@ -128,84 +209,59 @@ export const riskController = {
           level = getRiskLevel(score)?.label;
         }
         
+        // Pre-compute title for sorting (avoid repeated toLowerCase calls)
+        const titleForSort = (risk.title || risk.riskEvent || risk.id || '').toLowerCase();
+        
         return {
-          ...risk,
+          risk,
           calculatedScore: score,
           calculatedLevel: level,
+          titleForSort,
         };
       });
 
-      // Sort based on sortBy parameter
-      let sortedRisks = [...risksWithScores];
-      switch (sortBy) {
-        case 'highest-risk':
-          sortedRisks.sort((a, b) => {
-            const scoreA = a.calculatedScore || 0;
-            const scoreB = b.calculatedScore || 0;
+      // Sort based on sortBy parameter (optimized with pre-computed values)
+      risksWithMetadata.sort((a, b) => {
+        // Pre-compute scores once for all cases
+        const scoreA = a.calculatedScore || 0;
+        const scoreB = b.calculatedScore || 0;
+        const scoreDiff = scoreB - scoreA; // For descending (highest first)
+        
+        switch (sortBy) {
+          case 'highest-risk':
             if (scoreA === scoreB) {
-              // If scores are equal, sort by title A-Z
-              const titleA = (a.title || a.riskEvent || a.id || '').toLowerCase();
-              const titleB = (b.title || b.riskEvent || b.id || '').toLowerCase();
-              return titleA.localeCompare(titleB);
+              return a.titleForSort.localeCompare(b.titleForSort);
             }
-            return scoreB - scoreA; // Descending order (highest first)
-          });
-          break;
-        
-        case 'lowest-risk':
-          sortedRisks.sort((a, b) => {
-            const scoreA = a.calculatedScore || 0;
-            const scoreB = b.calculatedScore || 0;
+            return scoreDiff; // Descending order (highest first)
+          
+          case 'lowest-risk':
             if (scoreA === scoreB) {
-              // If scores are equal, sort by title A-Z
-              const titleA = (a.title || a.riskEvent || a.id || '').toLowerCase();
-              const titleB = (b.title || b.riskEvent || b.id || '').toLowerCase();
-              return titleA.localeCompare(titleB);
+              return a.titleForSort.localeCompare(b.titleForSort);
             }
-            return scoreA - scoreB; // Ascending order (lowest first)
-          });
-          break;
-        
-        case 'a-to-z':
-          sortedRisks.sort((a, b) => {
-            const titleA = (a.title || a.riskEvent || a.id || '').toLowerCase();
-            const titleB = (b.title || b.riskEvent || b.id || '').toLowerCase();
-            return titleA.localeCompare(titleB);
-          });
-          break;
-        
-        case 'z-to-a':
-          sortedRisks.sort((a, b) => {
-            const titleA = (a.title || a.riskEvent || a.id || '').toLowerCase();
-            const titleB = (b.title || b.riskEvent || b.id || '').toLowerCase();
-            return titleB.localeCompare(titleA);
-          });
-          break;
-        
-        default:
-          // Default: highest-risk
-          sortedRisks.sort((a, b) => {
-            const scoreA = a.calculatedScore || 0;
-            const scoreB = b.calculatedScore || 0;
+            return -scoreDiff; // Ascending order (lowest first)
+          
+          case 'a-to-z':
+            return a.titleForSort.localeCompare(b.titleForSort);
+          
+          case 'z-to-a':
+            return b.titleForSort.localeCompare(a.titleForSort);
+          
+          default: // 'highest-risk'
             if (scoreA === scoreB) {
-              const titleA = (a.title || a.riskEvent || a.id || '').toLowerCase();
-              const titleB = (b.title || b.riskEvent || b.id || '').toLowerCase();
-              return titleA.localeCompare(titleB);
+              return a.titleForSort.localeCompare(b.titleForSort);
             }
-            return scoreB - scoreA;
-          });
-      }
+            return scoreDiff;
+        }
+      });
 
-      // Return all sorted risks (no pagination)
-      const risks = sortedRisks;
+      // Transform to frontend format in single pass (optimized)
+      const formattedRisks = risksWithMetadata.map(({ risk, calculatedScore, calculatedLevel }) => {
+        // Use pre-calculated score and level
+        const score = calculatedScore || 0;
+        const level = calculatedLevel || null;
 
-      // Transform to frontend format (scores already calculated during sorting)
-      const formattedRisks = risks.map(risk => {
-        // Use pre-calculated score from sorting step
-        const score = risk.calculatedScore || 0;
-        const level = risk.calculatedLevel || null;
-
-        return {
+        // OPTIMIZED: Build response object directly without spread operators
+        const formattedRisk = {
           id: risk.id,
           userId: risk.userId,
           riskEvent: risk.riskEvent,
@@ -225,8 +281,11 @@ export const riskController = {
           level,
           createdAt: risk.createdAt.toISOString(),
           updatedAt: risk.updatedAt.toISOString(),
-          // Include analysis data
-          ...(risk.analysis && {
+        };
+
+        // Include analysis data (only if exists)
+        if (risk.analysis) {
+          Object.assign(formattedRisk, {
             existingControl: risk.analysis.existingControl,
             controlType: risk.analysis.controlType,
             controlLevel: risk.analysis.controlLevel,
@@ -250,9 +309,12 @@ export const riskController = {
             residualScore: risk.analysis.residualScore,
             residualLevel: risk.analysis.residualLevel,
             analyzedAt: risk.analysis.analyzedAt?.toISOString(),
-          }),
-          // Include mitigation data
-          ...(risk.mitigation && {
+          });
+        }
+
+        // Include mitigation data (only if exists)
+        if (risk.mitigation) {
+          Object.assign(formattedRisk, {
             handlingType: risk.mitigation.handlingType,
             mitigationPlan: risk.mitigation.mitigationPlan,
             mitigationOutput: risk.mitigation.mitigationOutput,
@@ -262,12 +324,13 @@ export const riskController = {
             realizationTarget: risk.mitigation.realizationTarget,
             targetKpi: risk.mitigation.targetKpi,
             // Prefer mitigation residual values if present, otherwise keep analysis values
-            residualImpactDescription: risk.mitigation.residualImpactDescription ?? risk.analysis?.residualImpactDescription,
-            residualImpactLevel: risk.mitigation.residualImpactLevel ?? risk.analysis?.residualImpactLevel,
-            residualProbabilityDescription: risk.mitigation.residualProbabilityDescription ?? risk.analysis?.residualProbabilityDescription,
-            residualProbabilityType: risk.mitigation.residualProbabilityType ?? risk.analysis?.residualPossibilityType,
-            residualScore: risk.mitigation.residualScore ?? risk.analysis?.residualScore,
-            residualScoreFinal: risk.mitigation.residualScoreFinal ?? risk.analysis?.residualScore,
+            // Note: residual fields don't exist in RiskMitigation, so always use analysis values
+            residualImpactDescription: risk.analysis?.residualImpactDescription,
+            residualImpactLevel: risk.analysis?.residualImpactLevel,
+            residualProbabilityDescription: risk.analysis?.residualPossibilityDescription,
+            residualProbabilityType: risk.analysis?.residualPossibilityType,
+            residualScore: risk.analysis?.residualScore,
+            residualScoreFinal: risk.analysis?.residualScore,
             // inherentScore should always come from analysis, not mitigation
             // This ensures consistency - inherentScore in risk_mitigations should match risk_analyses
             inherentScore: risk.analysis?.inherentScore ?? risk.mitigation.inherentScore,
@@ -279,25 +342,31 @@ export const riskController = {
             currentScore: risk.mitigation.currentScore,
             currentLevel: risk.mitigation.currentLevel,
             plannedAt: risk.mitigation.plannedAt?.toISOString(),
-          }),
-          // Include latest evaluation
-          ...(risk.evaluations?.[0] && {
+          });
+        }
+
+        // Include latest evaluation (only if exists)
+        if (risk.evaluations?.[0]) {
+          const evaluation = risk.evaluations[0];
+          Object.assign(formattedRisk, {
             // Transform evaluationStatus from enum format (UPPERCASE with underscore) to form format (lowercase with dash)
-            evaluationStatus: risk.evaluations[0].evaluationStatus === 'EFFECTIVE' ? 'effective' :
-                              risk.evaluations[0].evaluationStatus === 'NOT_EFFECTIVE' ? 'ineffective' :
-                              risk.evaluations[0].evaluationStatus === 'PARTIALLY_EFFECTIVE' ? 'partially-effective' :
-                              risk.evaluations[0].evaluationStatus === 'NOT_STARTED' ? 'not-started' :
-                              risk.evaluations[0].evaluationStatus?.toLowerCase() || null,
-            evaluationNotes: risk.evaluations[0].evaluationNotes,
-            evaluationDate: risk.evaluations[0].evaluationDate?.toISOString(),
-            evaluator: risk.evaluations[0].evaluator,
-            evaluatorNote: risk.evaluations[0].evaluatorNote,
-            lastEvaluatedAt: risk.evaluations[0].lastEvaluatedAt?.toISOString(),
+            evaluationStatus: evaluation.evaluationStatus === 'EFFECTIVE' ? 'effective' :
+                              evaluation.evaluationStatus === 'NOT_EFFECTIVE' ? 'ineffective' :
+                              evaluation.evaluationStatus === 'PARTIALLY_EFFECTIVE' ? 'partially-effective' :
+                              evaluation.evaluationStatus === 'NOT_STARTED' ? 'not-started' :
+                              evaluation.evaluationStatus?.toLowerCase() || null,
+            evaluationNotes: evaluation.evaluationNotes,
+            evaluationDate: evaluation.evaluationDate?.toISOString(),
+            evaluator: evaluation.evaluator,
+            evaluatorNote: evaluation.evaluatorNote,
+            lastEvaluatedAt: evaluation.lastEvaluatedAt?.toISOString(),
             // Only include descriptions, not levels/types (those come from mitigation)
-            currentImpactDescription: risk.evaluations[0].currentImpactDescription,
-            currentProbabilityDescription: risk.evaluations[0].currentProbabilityDescription,
-          }),
-        };
+            currentImpactDescription: evaluation.currentImpactDescription,
+            currentProbabilityDescription: evaluation.currentProbabilityDescription,
+          });
+        }
+
+        return formattedRisk;
       });
 
       // Prepare response (no pagination)

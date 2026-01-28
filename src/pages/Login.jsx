@@ -161,7 +161,17 @@ export default function Login() {
         }),
       });
 
-      const data = await response.json();
+      const ct = response.headers.get('content-type') || '';
+      let data = {};
+      if (ct.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch {
+          setRegisterErrors({ submit: 'Server mengembalikan respons bukan JSON. Pastikan Nginx mem-proxy /api ke backend.' });
+          setIsLoading(false);
+          return;
+        }
+      }
 
       if (!response.ok) {
         setRegisterErrors({ submit: data.error || 'Registration failed. Please try again.' });

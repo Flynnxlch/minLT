@@ -7,6 +7,14 @@
 const activeSessions = new Map(); // userId -> Set of sessionIds
 const sessionDetails = new Map(); // sessionId -> session details
 const sessionHistory = []; // Array of session events for history tracking
+const trafficStats = {
+  totalRequests: 0,
+  requestsByEndpoint: new Map(),
+  requestsByUser: new Map(),
+  requestsByIP: new Map(),
+  requestsByHour: new Map(),
+  startTime: new Date().toISOString(),
+};
 const MAX_CONCURRENT_LOGINS = 15;
 const MAX_DEVICES_PER_USER = 4;
 const DEVICE_WARNING_THRESHOLD = 3;
@@ -15,7 +23,7 @@ const MAX_HISTORY_ENTRIES = 1000; // Keep last 1000 session events
 /**
  * Generate session ID from request
  */
-function generateSessionId(request, user) {
+export function generateSessionId(request, user) {
   const userAgent = request.headers.get('User-Agent') || 'unknown';
   const ip = request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() || 
              request.headers.get('X-Real-IP') || 
@@ -181,8 +189,9 @@ export function updateSessionActivity(userId, sessionId) {
     const details = sessionDetails.get(sessionId);
     if (details) {
       details.lastActivity = new Date().toISOString();
+      // Also update device info in case it changed (e.g., IP changed)
+      return true;
     }
-    return true;
   }
   return false;
 }
@@ -267,6 +276,123 @@ export function getActiveSessionsDetails() {
     });
   }
   return details;
+}
+
+/**
+ * Track API request for traffic monitoring
+ */
+export function trackRequest(request, user = null) {
+  const url = new URL(request.url);
+  const endpoint = url.pathname;
+  const method = request.method;
+  const ip = request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() || 
+             request.headers.get('X-Real-IP') || 
+             'unknown';
+  const hour = new Date().getHours();
+  
+  // Update total requests
+  trafficStats.totalRequests++;
+  
+  // Track by endpoint
+  const endpointKey = `${method} ${endpoint}`;
+  trafficStats.requestsByEndpoint.set(
+    endpointKey,
+    (trafficStats.requestsByEndpoint.get(endpointKey) || 0) + 1
+  );
+  
+  // Track by user
+  if (user) {
+    const userKey = `${user.id}:${user.email}`;
+    trafficStats.requestsByUser.set(
+      userKey,
+      (trafficStats.requestsByUser.get(userKey) || 0) + 1
+    );
+  }
+  
+  // Track by IP
+  trafficStats.requestsByIP.set(
+    ip,
+    (trafficStats.requestsByIP.get(ip) || 0) + 1
+  );
+  
+  // Track by hour
+  trafficStats.requestsByHour.set(
+    hour,
+    (trafficStats.requestsByHour.get(hour) || 0) + 1
+  );
+}
+
+/**
+ * Get traffic statistics
+ */
+export function getTrafficStats() {
+  // Convert Maps to arrays for JSON serialization
+  const requestsByEndpoint = Array.from(trafficStats.requestsByEndpoint.entries())
+    .map(([endpoint, count]) => ({ endpoint, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20); // Top 20 endpoints
+  
+  const requestsByUser = Array.from(trafficStats.requestsByUser.entries())
+    .map(([userKey, count]) => {
+      const [userId, email] = userKey.split(':');
+      return { userId: parseInt(userId), email, count };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20); // Top 20 users
+  
+  const requestsByIP = Array.from(trafficStats.requestsByIP.entries())
+    .map(([ip, count]) => ({ ip, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20); // Top 20 IPs
+  
+  const requestsByHour = Array.from(trafficStats.requestsByHour.entries())
+    .map(([hour, count]) => ({ hour: parseInt(hour), count }))
+    .sort((a, b) => a.hour - b.hour);
+  
+  const uptime = Math.floor((Date.now() - new Date(trafficStats.startTime).getTime()) / 1000);
+  const requestsPerSecond = trafficStats.totalRequests / Math.max(uptime, 1);
+  const requestsPerMinute = requestsPerSecond * 60;
+  const requestsPerHour = requestsPerMinute * 60;
+  
+  return {
+    summary: {
+      totalRequests: trafficStats.totalRequests,
+      uptimeSeconds: uptime,
+      uptimeFormatted: formatUptime(uptime),
+      requestsPerSecond: Math.round(requestsPerSecond * 100) / 100,
+      requestsPerMinute: Math.round(requestsPerMinute * 100) / 100,
+      requestsPerHour: Math.round(requestsPerHour * 100) / 100,
+      startTime: trafficStats.startTime,
+      uniqueEndpoints: trafficStats.requestsByEndpoint.size,
+      uniqueUsers: trafficStats.requestsByUser.size,
+      uniqueIPs: trafficStats.requestsByIP.size,
+    },
+    topEndpoints: requestsByEndpoint,
+    topUsers: requestsByUser,
+    topIPs: requestsByIP,
+    hourlyDistribution: requestsByHour,
+  };
+}
+
+/**
+ * Format uptime to human readable string
+ */
+function formatUptime(seconds) {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  if (days > 0) {
+    return `${days}d ${hours}h ${minutes}m ${secs}s`;
+  }
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${secs}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${secs}s`;
+  }
+  return `${secs}s`;
 }
 
 // Cleanup every 10 minutes

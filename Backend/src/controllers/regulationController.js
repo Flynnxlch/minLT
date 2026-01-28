@@ -47,7 +47,19 @@ export const regulationController = {
    */
   getAll: async () => {
     try {
+      // OPTIMIZED: Select only needed columns to reduce payload size
       const updates = await prisma.regulationUpdate.findMany({
+        select: {
+          id: true,
+          title: true,
+          category: true,
+          contentType: true,
+          content: true,
+          link: true,
+          publishedAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
         orderBy: { publishedAt: 'desc' },
       });
 
@@ -173,7 +185,7 @@ export const regulationController = {
           if (matches) {
             const fileExtension = matches[1];
             const base64Data = matches[2];
-            // Convert base64 to Uint8Array for Bun
+            // Convert base64 to Uint8Array
             const binaryString = atob(base64Data);
             const bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
@@ -303,7 +315,7 @@ export const regulationController = {
           if (matches) {
             const fileExtension = matches[1];
             const base64Data = matches[2];
-            // Convert base64 to Uint8Array for Bun
+            // Convert base64 to Uint8Array
             const binaryString = atob(base64Data);
             const bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {

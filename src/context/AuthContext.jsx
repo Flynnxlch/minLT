@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { API_ENDPOINTS, setAuthToken, getAuthToken } from '../config/api';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { API_ENDPOINTS, getAuthToken, setAuthToken } from '../config/api';
 import { logger } from '../utils/logger';
 
 const AuthContext = createContext(null);
@@ -75,9 +75,22 @@ export function AuthProvider({ children }) {
         },
       });
 
-      if (response.ok) {
-        const userData = await response.json();
-        const newUser = userData.user || userData;
+      const ct = response.headers.get('content-type') || '';
+      const maybeJson = ct.includes('application/json');
+      if (response.ok && maybeJson) {
+        let userData;
+        try {
+          userData = await response.json();
+        } catch (_) {
+          // Body is HTML or invalid JSON (e.g. proxy/nginx mengembalikan halaman)
+          setUser(null);
+          localStorage.removeItem(STORAGE_KEY);
+          setAuthToken(null);
+          localStorage.removeItem(REMEMBER_ME_KEY);
+          localStorage.removeItem(REMEMBER_ME_EXPIRY_KEY);
+          return;
+        }
+        const newUser = userData?.user ?? userData;
         const currentUser = hydrate();
         
         // Check if user changed (different user logged in)
@@ -93,12 +106,11 @@ export function AuthProvider({ children }) {
         if (userChanged) {
           window.dispatchEvent(new Event('user-login'));
         }
-      } else {
-        // Token invalid or expired, clear storage
+      } else if (!response.ok || !maybeJson) {
+        // Token invalid/expired atau response bukan JSON (HTML dari proxy)
         setUser(null);
         localStorage.removeItem(STORAGE_KEY);
         setAuthToken(null);
-        // Clear rememberMe flag if token is invalid
         localStorage.removeItem(REMEMBER_ME_KEY);
         localStorage.removeItem(REMEMBER_ME_EXPIRY_KEY);
       }
@@ -140,7 +152,26 @@ export function AuthProvider({ children }) {
         body: JSON.stringify({ email, password, rememberMe }),
       });
 
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      const isJson = contentType.includes('application/json');
+
+      const apiProxyError = 'Server mengembalikan halaman HTML, bukan API. Pastikan Nginx mem-proxy /api ke backend (port 3001) dan backend berjalan (PM2).';
+
+      if (!isJson) {
+        const text = await response.text();
+        const looksLikeHtml = typeof text === 'string' && /^\s*</i.test(text);
+        return {
+          success: false,
+          error: looksLikeHtml ? apiProxyError : `Respons tidak valid (${response.status}). Periksa konfigurasi server dan backend.`,
+        };
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        return { success: false, error: apiProxyError };
+      }
 
       if (!response.ok) {
         return { success: false, error: data.error || 'Invalid email or password' };
@@ -169,11 +200,10 @@ export function AuthProvider({ children }) {
         deviceCount: data.deviceCount || null,
       };
     } catch (error) {
-      // Network error or other issues
-      if (error.message.includes('fetch')) {
-        return { success: false, error: 'Unable to connect to server. Please check if the backend is running.' };
+      if (error.message?.includes('fetch') || error.name === 'TypeError') {
+        return { success: false, error: 'Tidak bisa terhubung ke server. Pastikan backend jalan (PM2) dan Nginx mem-proxy /api.' };
       }
-      return { success: false, error: error.message || 'Login failed' };
+      return { success: false, error: error.message || 'Login gagal.' };
     }
   };
 

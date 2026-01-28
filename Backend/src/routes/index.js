@@ -1,9 +1,9 @@
-import { apiRoutes } from './api.js';
-import { getCurrentSessions } from '../middleware/session.js';
-import { getDetectionHistory } from '../middleware/rateLimit.js';
-import { getLogs, clearLogs, pauseLogging, startLogging, getLoggingStatus, exportLogsToCSV, exportLogsToXLSX } from '../middleware/logger.js';
-import { getDashboardHTML } from './dashboard.js';
 import ExcelJS from 'exceljs';
+import { clearLogs, exportLogsToCSV, exportLogsToXLSX, getLoggingStatus, getLogs, pauseLogging, startLogging } from '../middleware/logger.js';
+import { getDetectionHistory } from '../middleware/rateLimit.js';
+import { getCurrentSessions, getTrafficStats, trackRequest } from '../middleware/session.js';
+import { apiRoutes } from './api.js';
+import { getDashboardHTML } from './dashboard.js';
 
 /**
  * Main request handler - routes requests to appropriate handlers
@@ -12,8 +12,13 @@ export async function handleRequest(request) {
   const url = new URL(request.url);
   const path = url.pathname;
   
+  // Track request for traffic monitoring (before processing)
+  // We'll get user from request if available after auth
+  let trackedUser = null;
+  
   // Dashboard HTML (serve at root)
   if (path === '/' || path === '/dashboard') {
+    trackRequest(request, trackedUser);
     return new Response(getDashboardHTML(), {
       status: 200,
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -22,7 +27,10 @@ export async function handleRequest(request) {
   
   // API routes
   if (path.startsWith('/api')) {
-    return apiRoutes(request, path.replace('/api', ''));
+    const response = await apiRoutes(request, path.replace('/api', ''));
+    // Track request after processing (user might be set by auth middleware)
+    trackRequest(request, request.user || null);
+    return response;
   }
   
   // Monitoring API endpoints
@@ -31,6 +39,7 @@ export async function handleRequest(request) {
     
     // Server Health
     if (endpoint === '/health') {
+      trackRequest(request, request.user || null);
       return new Response(
         JSON.stringify({
           status: 'ok',
@@ -49,6 +58,7 @@ export async function handleRequest(request) {
     
     // Current Sessions
     if (endpoint === '/sessions') {
+      trackRequest(request, request.user || null);
       const currentSessions = getCurrentSessions();
       return new Response(
         JSON.stringify(currentSessions),
@@ -59,8 +69,22 @@ export async function handleRequest(request) {
       );
     }
     
+    // Traffic Statistics
+    if (endpoint === '/traffic') {
+      trackRequest(request, request.user || null);
+      const trafficStats = getTrafficStats();
+      return new Response(
+        JSON.stringify(trafficStats),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
     // Detection Bot
     if (endpoint === '/detection') {
+      trackRequest(request, request.user || null);
       const limit = url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit'), 10) : 100;
       const detection = getDetectionHistory(limit);
       return new Response(
@@ -74,6 +98,7 @@ export async function handleRequest(request) {
     
     // Log History
     if (endpoint === '/logs') {
+      trackRequest(request, request.user || null);
       const limit = url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit'), 10) : 100;
       const method = url.searchParams.get('method') || null;
       const status = url.searchParams.get('status') ? parseInt(url.searchParams.get('status'), 10) : null;

@@ -108,16 +108,22 @@ export const apiRequest = async (url, options = {}) => {
     
     const response = await fetch(url, fetchOptions);
 
-    // Handle non-JSON responses
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      return {};
+    // Handle non-JSON responses (termasuk HTML dari proxy bila /api tidak di-proxy)
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      const looksLikeHtml = /^\s*</i.test(text);
+      throw new Error(looksLikeHtml
+        ? 'Server mengembalikan HTML, bukan API. Pastikan Nginx mem-proxy /api ke backend (port 3001).'
+        : `HTTP ${response.status}: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      throw new Error('Server mengembalikan respons bukan JSON. Pastikan Nginx mem-proxy /api ke backend (port 3001).');
+    }
 
     if (!response.ok) {
       throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);

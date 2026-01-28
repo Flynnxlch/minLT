@@ -5,14 +5,14 @@
   "type": "module",
   "main": "src/server.js",
   "scripts": {
-    "dev": "bun --watch src/server.js",
-    "start": "bun src/server.js",
-    "test": "bun test",
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "test": "node --test",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "bun prisma/seed.js",
+    "prisma:seed": "node prisma/seed.js",
     "build": "npm install && npx prisma generate",
     "vercel-build": "npm install && npx prisma generate"
   },
@@ -31,7 +31,6 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
-    "@types/bun": "^1.3.6",
     "@types/jsonwebtoken": "^9.0.10",
     "prisma": "^5.19.1"
   }

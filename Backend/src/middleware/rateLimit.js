@@ -59,10 +59,9 @@ function getClientId(request) {
   const ip = forwarded ? forwarded.split(',')[0].trim() : request.headers.get('X-Real-IP') || 'unknown';
   return `ip:${ip}`;
 }
-
 /**
  * Rate limit configuration
- */
+*/
 const RATE_LIMITS = {
   // Login/Register: 4 requests per minute
   '/auth/login': { maxRequests: 8, windowMs: 60 * 1000 },
@@ -70,7 +69,7 @@ const RATE_LIMITS = {
   
   // General API: 100 requests per minute
   default: { maxRequests: 70, windowMs: 60 * 1000 },
-  
+
   // Strict endpoints: 20 requests per minute
   strict: { maxRequests: 20, windowMs: 60 * 1000 },
 };

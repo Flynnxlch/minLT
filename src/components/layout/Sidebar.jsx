@@ -6,17 +6,18 @@ export default function Sidebar() {
 
   // Calculate sidebar classes based on state
   const getSidebarClasses = () => {
-    let classes = 'shadow-xl z-50 flex flex-col transition-all duration-300 ease-in-out';
+    let classes = 'shadow-xl flex flex-col transition-all duration-300 ease-in-out';
 
     if (isMobile) {
       // Mobile: slide in/out from left (overlay)
-      classes += ' fixed top-0 left-0 h-screen';
+      // Higher z-index than overlay to ensure it's clickable
+      classes += ' fixed top-0 left-0 h-screen z-[1050]';
       classes += isSidebarOpen
         ? ' w-[var(--sidebar-width)] translate-x-0'
         : ' w-[var(--sidebar-width)] -translate-x-full';
     } else {
       // Desktop: in-flow sidebar (no extra left margin needed in layout)
-      classes += ' sticky top-0 h-screen shrink-0';
+      classes += ' sticky top-0 h-screen shrink-0 z-50';
       classes += isSidebarCollapsed
         ? ' w-[var(--sidebar-mini-width)]'
         : ' w-[var(--sidebar-width)]';
@@ -30,7 +31,7 @@ export default function Sidebar() {
       {/* Overlay for mobile */}
       {isMobile && isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/20 z-1035 lg:hidden animate-fade-in"
+          className="fixed inset-0 bg-black/20 z-[1040] lg:hidden animate-fade-in"
           onClick={closeSidebar}
           aria-hidden="true"
         />

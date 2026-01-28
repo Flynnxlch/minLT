@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config/index.js';
 import { prisma } from '../lib/prisma.js';
+import { trackUserSession, updateSessionActivity, generateSessionId } from './session.js';
 
 /**
  * Extract JWT token from Authorization header
@@ -108,6 +109,23 @@ export async function authMiddleware(request) {
         headers: { 'Content-Type': 'application/json' },
       }
     );
+  }
+
+  // Track or update session activity when token is verified (e.g., on page reload)
+  // This ensures sessions are tracked even when user refreshes the page
+  try {
+    const sessionId = generateSessionId(request, user);
+    const updated = updateSessionActivity(user.id, sessionId);
+    
+    // If session doesn't exist, create it (e.g., user reloaded page)
+    if (!updated) {
+      await trackUserSession(request, user);
+    }
+  } catch (error) {
+    // Don't fail auth if session tracking fails, just log it
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[Auth] Session tracking error:', error.message);
+    }
   }
 
   // Attach user to request (we'll pass it through context)

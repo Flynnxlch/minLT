@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useSidebar } from '../../context/SidebarContext';
 import { RISK_LEVELS } from '../../utils/risk';
 
 // Menu configuration
@@ -60,6 +61,7 @@ const menuItems = [
 
 function MenuItem({ item, collapsed, level = 0 }) {
   const location = useLocation();
+  const { isMobile, closeSidebar } = useSidebar();
   const [isOpen, setIsOpen] = useState(() => {
     // Check if any child is active to auto-expand
     if (item.children) {
@@ -134,6 +136,17 @@ function MenuItem({ item, collapsed, level = 0 }) {
     if (isDisabled) {
       e.preventDefault();
     }
+    // Close sidebar on mobile when menu item is clicked
+    if (isMobile && !hasChildren && !isDisabled) {
+      closeSidebar();
+    }
+  };
+
+  const handleLinkClick = () => {
+    // Close sidebar on mobile when link is clicked
+    if (isMobile && !hasChildren && !isDisabled) {
+      closeSidebar();
+    }
   };
 
   const content = (
@@ -173,7 +186,11 @@ function MenuItem({ item, collapsed, level = 0 }) {
   return (
     <li className={`mb-1 ${isOpen ? 'menu-open' : ''}`}>
       {item.path && !hasChildren && !isDisabled ? (
-        <Link to={item.path} className={`${linkClasses} ${activeBorderStyle}`}>
+        <Link 
+          to={item.path} 
+          className={`${linkClasses} ${activeBorderStyle}`}
+          onClick={handleLinkClick}
+        >
           {content}
         </Link>
       ) : (

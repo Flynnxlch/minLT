@@ -22,7 +22,7 @@ export async function parseBody(request) {
     }
   }
   
-  // For Bun, we need to read the body and check size
+  // Read the body and check size
   // Note: This reads the body, so it can only be called once
   const bodyText = await request.text();
   

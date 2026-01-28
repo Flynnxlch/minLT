@@ -34,22 +34,7 @@ Copy `.env.example` to `.env` and fill in your values:
 cp .env.example .env
 ```
 
-Then edit `.env` and add your Supabase connection string:
 
-```env
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/minlt?schema=public"
-
-# JWT
-JWT_SECRET="your-super-secret-key-change-in-production"
-JWT_EXPIRES_IN="7d"
-
-# Server
-PORT=3001
-NODE_ENV=development
-
-# CORS
-CORS_ORIGIN="http://localhost:5173"
 ```
 
 For Supabase, get your connection string from the Supabase dashboard:
