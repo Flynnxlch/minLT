@@ -201,7 +201,7 @@ export function AuthProvider({ children }) {
       };
     } catch (error) {
       if (error.message?.includes('fetch') || error.name === 'TypeError') {
-          return { success: false, error: 'Tidak bisa terhubung ke server. Pastikan backend jalan (PM2) dan Nginx mem-proxy /api.' };
+          return { success: false, error: 'Terjadi Kesalahan Saat Melakukan Login. Silakan coba lagi.' };
         }
       return { success: false, error: error.message || 'Login gagal.' };
     }
