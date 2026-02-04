@@ -1,0 +1,13 @@
+# Environment (JANGAN commit)
+.env
+.env.*
+.env.local
+
+# Dependencies
+node_modules/
+
+# Logs
+logs/
+*.log
+
+.vercel/
