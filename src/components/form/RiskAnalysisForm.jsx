@@ -166,20 +166,20 @@ export default function RiskAnalysisForm({
         <div className="space-y-4">
           {/* Kontrol yang Ada */}
           <div className="flex flex-col gap-2">
-            <label htmlFor="existing-control" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Kontrol yang Ada</label>
+            <label htmlFor="existing-control" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Existing Control</label>
             <textarea
               id="existing-control"
               className={`${inputBase} min-h-[100px] resize-y`}
               value={existingControl}
               onChange={(e) => setExistingControl(e.target.value)}
-              placeholder="Jelaskan kontrol yang ada..."
+              placeholder="Tuliskan Pedoman, Manual, Prosedur, SOP atau WI yang berlaku, kemudian kaitkan dengan penyebab risik"
             />
           </div>
 
           {/* Jenis Kontrol & Level Kontrol */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <label htmlFor="control-type" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Jenis Kontrol</label>
+              <label htmlFor="control-type" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Jenis Existing Control</label>
               <ControlTypeDropdown
                 id="control-type"
                 value={controlType}
@@ -287,7 +287,7 @@ export default function RiskAnalysisForm({
           {/* Value Aman, Hati-Hati, Bahaya */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="flex flex-col gap-2">
-              <label htmlFor="kri-value-safe" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Value Aman</label>
+              <label htmlFor="kri-value-safe" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Batas Aman</label>
               <input
                 id="kri-value-safe"
                 className={inputBase}
@@ -298,7 +298,7 @@ export default function RiskAnalysisForm({
             </div>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="kri-value-caution" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Value Hati-Hati</label>
+              <label htmlFor="kri-value-caution" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Batas Hati-Hati</label>
               <input
                 id="kri-value-caution"
                 className={inputBase}
@@ -309,7 +309,7 @@ export default function RiskAnalysisForm({
             </div>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="kri-value-danger" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Value Bahaya</label>
+              <label htmlFor="kri-value-danger" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Batas Bahaya</label>
               <input
                 id="kri-value-danger"
                 className={inputBase}
@@ -329,7 +329,7 @@ export default function RiskAnalysisForm({
         <div className="space-y-6">
           {/* Inherent Risk */}
           <div className="border-l-4 border-blue-500 pl-4">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Inherent Risk (Risiko awal sebelum adanya kontrol)</h4>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Inherent Risk (Risiko awal sebelum adanya mitigasi)</h4>
             
             <div className="space-y-4">
               {/* Tingkat Dampak & Deskripsi Dampak */}
@@ -358,7 +358,7 @@ export default function RiskAnalysisForm({
                     className={`${inputBase} min-h-[100px] resize-y`}
                     value={impactDescription}
                     onChange={(e) => setImpactDescription(e.target.value)}
-                    placeholder="Jelaskan dampak potensial..."
+                    placeholder="Jelaskan alasan memilih tingkat dampak"
                   />
                 </div>
               </div>
@@ -389,7 +389,7 @@ export default function RiskAnalysisForm({
                     className={`${inputBase} min-h-[100px] resize-y`}
                     value={possibilityDescription}
                     onChange={(e) => setPossibilityDescription(e.target.value)}
-                    placeholder="Jelaskan kemungkinan/kemungkinan..."
+                    placeholder="Jelaskan alasan memilih tingkat kemungkinan"
                   />
                 </div>
               </div>
@@ -413,7 +413,7 @@ export default function RiskAnalysisForm({
 
           {/* Residual Risk */}
           <div className="border-l-4 border-green-500 pl-4">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Residual Risk (Risiko yang diharapkan setelah kontrol)</h4>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Residual Risk (Risiko yang diharapkan setelah mitigasi)</h4>
             
             <div className="space-y-4">
               {/* Tingkat Dampak Residual & Deskripsi Dampak Residual */}
@@ -442,7 +442,7 @@ export default function RiskAnalysisForm({
                     className={`${inputBase} min-h-[100px] resize-y`}
                     value={residualImpactDescription}
                     onChange={(e) => setResidualImpactDescription(e.target.value)}
-                    placeholder="Jelaskan dampak residual..."
+                    placeholder="Jelaskan alasan memilih tingkat dampak"
                   />
                 </div>
               </div>
@@ -473,7 +473,7 @@ export default function RiskAnalysisForm({
                     className={`${inputBase} min-h-[100px] resize-y`}
                     value={residualPossibilityDescription}
                     onChange={(e) => setResidualPossibilityDescription(e.target.value)}
-                    placeholder="Jelaskan kemungkinan residual..."
+                    placeholder="Jelaskan alasan memilih tingkat kemungkinan"
                   />
                 </div>
               </div>
