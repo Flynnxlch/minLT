@@ -315,12 +315,12 @@ export default function MitigationPlanForm({
             className={`${inputBase} min-h-[90px] resize-y`}
             value={progressMitigation}
             onChange={(e) => setProgressMitigation(e.target.value)}
-            placeholder="Jelaskan progress mitigasi, misal: Update April: Inaugural Xiamen FOC-SUB 3x/week - 1 April 2025, Telah ditandatangani BA kerjasama......."
+            placeholder="Jelaskan progress mitigasi..."
           />
         </div>
         <div className="space-y-4">
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Realisasi Progress Bulan Berjalan</label>
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Realisasi Terhadap Target</label>
             <textarea
               className={`${inputBase} min-h-[90px] resize-y`}
               value={realizationTarget}

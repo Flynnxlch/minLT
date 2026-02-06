@@ -638,7 +638,7 @@ export default function RiskDetail() {
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Realisasi Progress Bulan Berjalan</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Realisasi Terhadap Target</label>
                   <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{risk.realizationTarget || 'N/A'}</p>
                 </div>
                 <div>
