@@ -1,6 +1,11 @@
 import Chart from 'chart.js/auto';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+const AXIS_TICK_COLOR = '#6b7280';
+const GRID_LINE_COLOR = 'rgba(156, 163, 175, 0.22)';
+const AXIS_BORDER_COLOR = 'rgba(156, 163, 175, 0.40)';
+const CROSSHAIR_COLOR = 'rgba(156, 163, 175, 0.45)';
+
 const crosshairPlugin = {
   id: 'crosshairLine',
   afterDraw(chart) {
@@ -14,7 +19,7 @@ const crosshairPlugin = {
     ctx.moveTo(x, top);
     ctx.lineTo(x, bottom);
     ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+    ctx.strokeStyle = CROSSHAIR_COLOR;
     ctx.stroke();
     ctx.restore();
   },
@@ -232,8 +237,8 @@ export default function RiskTrendChart({ risks = [], height = 300, period = '6mo
             label: 'Current Risk Ratio',
             data: currentRiskRatio,
             yAxisID: 'y',
-            borderColor: '#facc15',
-            backgroundColor: 'rgba(250, 204, 21, 0.10)',
+            borderColor: '#eab308',
+            backgroundColor: 'rgba(234, 179, 8, 0.14)',
             fill: true,
             tension: 0.35,
             pointRadius: 0,
@@ -299,9 +304,10 @@ export default function RiskTrendChart({ risks = [], height = 300, period = '6mo
         },
         scales: {
           x: {
+            border: { color: AXIS_BORDER_COLOR },
             grid: { display: false },
             ticks: {
-              color: '#6c757d',
+              color: AXIS_TICK_COLOR,
               callback: (_value, index) => {
                 if (period === 'currentMonth') {
                   return fmtDateTick(labels[index]);
@@ -314,12 +320,13 @@ export default function RiskTrendChart({ risks = [], height = 300, period = '6mo
           y: {
             beginAtZero: true,
             suggestedMax: 25,
-            grid: { color: 'rgba(0,0,0,0.08)' },
-            ticks: { color: '#6c757d' },
+            border: { color: AXIS_BORDER_COLOR },
+            grid: { color: GRID_LINE_COLOR },
+            ticks: { color: AXIS_TICK_COLOR },
             title: {
               display: true,
               text: 'Score',
-              color: '#6c757d',
+              color: AXIS_TICK_COLOR,
               font: { size: 12, weight: '600' },
             },
           },

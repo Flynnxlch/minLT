@@ -465,7 +465,7 @@ export default function RiskDetail() {
                       <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tingkat Risiko Inheren:</span>
                         <RiskLevelBadge score={risk.inherentScore} />
-                        <span className="text-sm font-bold text-gray-900 dark:text-white">{risk.inherentScore}/25</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{risk.inherentScore}/25</span>
                       </div>
                     )}
                   </div>
@@ -512,7 +512,7 @@ export default function RiskDetail() {
                       <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tingkat Risiko Residual:</span>
                         <RiskLevelBadge score={risk.residualScore} />
-                        <span className="text-sm font-bold text-gray-900 dark:text-white">{risk.residualScore}/25</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{risk.residualScore}/25</span>
                       </div>
                     )}
                   </div>
@@ -673,7 +673,7 @@ export default function RiskDetail() {
                 <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                   <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Score Risiko Terkini:</span>
                   <RiskLevelBadge score={risk.currentScore} />
-                  <span className="text-sm font-bold text-gray-900 dark:text-white">{risk.currentScore}/25</span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{risk.currentScore}/25</span>
                 </div>
               )}
             </div>
@@ -865,4 +865,3 @@ export default function RiskDetail() {
     </>
   );
 }
-

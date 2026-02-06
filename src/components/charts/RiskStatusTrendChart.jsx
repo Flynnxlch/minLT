@@ -1,6 +1,10 @@
 import Chart from 'chart.js/auto';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+const AXIS_TICK_COLOR = '#6b7280';
+const GRID_LINE_COLOR = 'rgba(156, 163, 175, 0.22)';
+const AXIS_BORDER_COLOR = 'rgba(156, 163, 175, 0.40)';
+
 /** Parse date from API (ISO string or Date). Returns null if invalid. */
 function parseDate(value) {
   if (value == null || value === '') return null;
@@ -225,9 +229,10 @@ export default function RiskStatusTrendChart({ risks = [], height = 220, period 
         },
         scales: {
           x: {
+            border: { color: AXIS_BORDER_COLOR },
             grid: { display: false },
             ticks: {
-              color: '#6c757d',
+              color: AXIS_TICK_COLOR,
               callback: (_value, index) => {
                 if (period === 'currentMonth') {
                   return fmtDateTick(labels[index]);
@@ -240,12 +245,13 @@ export default function RiskStatusTrendChart({ risks = [], height = 220, period 
           y: {
             beginAtZero: true,
             suggestedMax,
-            grid: { color: 'rgba(0,0,0,0.08)' },
-            ticks: { color: '#6c757d', precision: 0 },
+            border: { color: AXIS_BORDER_COLOR },
+            grid: { color: GRID_LINE_COLOR },
+            ticks: { color: AXIS_TICK_COLOR, precision: 0 },
             title: {
               display: true,
               text: 'Count',
-              color: '#6c757d',
+              color: AXIS_TICK_COLOR,
               font: { size: 12, weight: '600' },
             },
           },
@@ -267,5 +273,4 @@ export default function RiskStatusTrendChart({ risks = [], height = 220, period 
     </div>
   );
 }
-
 
