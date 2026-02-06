@@ -34,6 +34,8 @@ export default function RiskAnalysisForm({
   risk,
   onSubmit,
   onCancel,
+  submitLabel = 'Simpan Analisis',
+  disabled = false,
   onSaveAndGoToMitigation, // optional: simpan lalu buka tab Mitigasi (Risk Detail)
 }) {
   // Bagian 1: Kontrol yang Ada
@@ -125,13 +127,13 @@ export default function RiskAnalysisForm({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!risk) return;
+    if (!risk || disabled) return;
     onSubmit?.(buildPayload());
   };
 
   const handleSaveAndGoToMitigation = (e) => {
     e.preventDefault();
-    if (!risk) return;
+    if (!risk || disabled) return;
     onSaveAndGoToMitigation?.(buildPayload());
   };
 
@@ -502,6 +504,7 @@ export default function RiskAnalysisForm({
         <button
           type="button"
           onClick={onCancel}
+          disabled={disabled}
           className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
         >
           Batal
@@ -510,6 +513,7 @@ export default function RiskAnalysisForm({
           <button
             type="button"
             onClick={handleSaveAndGoToMitigation}
+            disabled={disabled}
             className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-[#0d6efd] border border-[#0d6efd] rounded-lg bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
           >
             <i className="bi bi-shield-check mr-2" />
@@ -518,9 +522,10 @@ export default function RiskAnalysisForm({
         )}
         <button
           type="submit"
+          disabled={disabled}
           className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-white bg-[#0d6efd] rounded-lg hover:bg-blue-600 transition-colors"
         >
-          Simpan Evaluasi
+          {submitLabel}
         </button>
       </div>
     </form>

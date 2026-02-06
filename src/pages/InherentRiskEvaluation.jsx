@@ -1,13 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { RiskAnalysisForm } from '../components/form';
-import RiskLevelBadge from '../components/risk/RiskLevelBadge';
 import ContentHeader from '../components/ui/ContentHeader';
 import NotificationPopup from '../components/ui/NotificationPopup';
 import { Card } from '../components/widgets';
 import { useRisks } from '../context/RiskContext';
 import { API_ENDPOINTS, apiRequest } from '../config/api';
-import { computeRiskScore } from '../utils/risk';
 
 export default function InherentRiskEvaluation() {
   const { riskId } = useParams();
@@ -20,7 +18,7 @@ export default function InherentRiskEvaluation() {
     return risks.find((r) => r.id === riskId);
   }, [risks, riskId]);
 
-  const handleSubmit = async (payload) => {
+  const saveAnalysis = async (payload) => {
     try {
       setIsSubmitting(true);
       
@@ -58,7 +56,7 @@ export default function InherentRiskEvaluation() {
 
       // Refresh risks from API
       await refreshRisks();
-      navigate('/risks');
+      return true;
     } catch (error) {
       console.error('Error saving analysis:', error);
       setNotification({
@@ -67,22 +65,29 @@ export default function InherentRiskEvaluation() {
         title: 'Gagal Menyimpan',
         message: 'Gagal menyimpan analisis: ' + (error.message || 'Unknown error'),
       });
+      return false;
+    } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async (payload) => {
+    const saved = await saveAnalysis(payload);
+    if (saved) {
+      navigate('/risks');
+    }
+  };
+
+  const handleSaveAndGoToMitigation = async (payload) => {
+    const saved = await saveAnalysis(payload);
+    if (saved) {
+      navigate(`/risks/${riskId}/mitigation-plan`);
     }
   };
 
   const handleCancel = () => {
     navigate('/risks');
   };
-
-  // Calculate inherent score for display in header
-  const inherentScore = useMemo(() => {
-    if (!risk) return 0;
-    return computeRiskScore({ 
-      possibility: risk.possibilityType || 3, 
-      impactLevel: risk.impactLevel || 4 
-    });
-  }, [risk]);
 
   if (!risk) {
     return (
@@ -157,6 +162,9 @@ export default function InherentRiskEvaluation() {
           risk={risk}
           onSubmit={handleSubmit}
           onCancel={handleCancel}
+          onSaveAndGoToMitigation={handleSaveAndGoToMitigation}
+          submitLabel={isSubmitting ? 'Menyimpan...' : 'Simpan Analisis'}
+          disabled={isSubmitting}
         />
       </Card>
 

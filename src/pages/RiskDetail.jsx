@@ -199,7 +199,6 @@ export default function RiskDetail() {
               regionCode: risk.regionCode || 'KPS',
             }}
             onSubmit={handleEditSubmit}
-            onSaveAndGoToAnalysis={(payload) => handleEditSubmit(payload, 'analysis')}
             submitLabel="Simpan Perubahan"
             simplified={true}
           />
@@ -210,7 +209,6 @@ export default function RiskDetail() {
             risk={risk}
             onSubmit={handleEditSubmit}
             onCancel={handleEditCancel}
-            onSaveAndGoToMitigation={(payload) => handleEditSubmit(payload, 'planning')}
           />
         );
       case 'planning':

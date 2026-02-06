@@ -13,11 +13,10 @@ export default function NewRiskEntry() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState({ isOpen: false, type: 'error', title: '', message: '' });
 
-  const handleSubmit = async (payload) => {
+  const createRisk = async (payload) => {
     try {
       setIsSubmitting(true);
-      await addRisk(payload);
-      navigate('/risks');
+      return await addRisk(payload);
     } catch (error) {
       logger.error('Error creating risk:', error);
       setNotification({
@@ -26,8 +25,34 @@ export default function NewRiskEntry() {
         title: 'Gagal Membuat Risiko',
         message: 'Gagal membuat risiko: ' + (error.message || 'Unknown error'),
       });
+      return null;
+    } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (payload) => {
+    const response = await createRisk(payload);
+    if (response) {
+      navigate('/risks');
+    }
+  };
+
+  const handleSaveAndGoToAnalysis = async (payload) => {
+    const response = await createRisk(payload);
+    const createdRiskId = response?.risk?.id;
+
+    if (!createdRiskId) {
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Gagal Mengarahkan',
+        message: 'Risiko tersimpan, tetapi ID risiko tidak ditemukan untuk lanjut ke Analisis.',
+      });
+      return;
+    }
+
+    navigate(`/risks/${createdRiskId}/risk-analysis`);
   };
 
   return (
@@ -50,6 +75,7 @@ export default function NewRiskEntry() {
           onSubmit={handleSubmit} 
           submitLabel={isSubmitting ? "Menyimpan..." : "Buat Risiko"} 
           simplified={true}
+          onSaveAndGoToAnalysis={handleSaveAndGoToAnalysis}
           disabled={isSubmitting}
         />
       </Card>
