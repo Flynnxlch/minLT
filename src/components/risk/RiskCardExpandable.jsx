@@ -309,7 +309,8 @@ export default function RiskCardExpandable({
               {/* Penyebab Risiko */}
               {risk.riskCause && (
                 <div>
-                  <span className="font-semibold">Penyebab Resiko:</span> {risk.riskCause}
+                  <span className="font-semibold">Penyebab Resiko:</span>
+                  <div className="whitespace-pre-wrap">{risk.riskCause}</div>
                 </div>
               )}
               {/* Kategori Resiko */}
@@ -321,7 +322,8 @@ export default function RiskCardExpandable({
               {/* Deskripsi Dampak */}
               {risk.riskImpactExplanation && (
                 <div>
-                  <span className="font-semibold">Deskripsi Dampak:</span> {risk.riskImpactExplanation}
+                  <span className="font-semibold">Deskripsi Dampak:</span>
+                  <div className="whitespace-pre-wrap">{risk.riskImpactExplanation}</div>
                 </div>
               )}
             </div>

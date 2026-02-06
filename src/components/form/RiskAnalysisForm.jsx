@@ -287,35 +287,35 @@ export default function RiskAnalysisForm({
           {/* Value Aman, Hati-Hati, Bahaya */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="flex flex-col gap-2">
-              <label htmlFor="kri-value-safe" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Value Aman</label>
+              <label htmlFor="kri-value-safe" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Batas Aman</label>
               <input
                 id="kri-value-safe"
                 className={inputBase}
                 value={kriValueSafe}
                 onChange={(e) => setKriValueSafe(e.target.value)}
-                placeholder="Value yang aman..."
+                placeholder="Batas Nilai yang aman..."
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="kri-value-caution" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Value Hati-Hati</label>
+              <label htmlFor="kri-value-caution" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Batas Hati-Hati</label>
               <input
                 id="kri-value-caution"
                 className={inputBase}
                 value={kriValueCaution}
                 onChange={(e) => setKriValueCaution(e.target.value)}
-                placeholder="Value yang hati-hati..."
+                placeholder="Batas Nilai yang hati-hati..."
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="kri-value-danger" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Value Bahaya</label>
+              <label htmlFor="kri-value-danger" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Batas Bahaya</label>
               <input
                 id="kri-value-danger"
                 className={inputBase}
                 value={kriValueDanger}
                 onChange={(e) => setKriValueDanger(e.target.value)}
-                placeholder="Value yang bahaya..."
+                placeholder="Batas Nilai yang bahaya..."
               />
             </div>
           </div>
