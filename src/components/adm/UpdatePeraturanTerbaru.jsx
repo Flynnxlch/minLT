@@ -3,6 +3,8 @@ import { Card } from '../widgets';
 import { apiRequest, API_ENDPOINTS } from '../../config/api';
 import NotificationPopup from '../ui/NotificationPopup';
 
+const CATEGORY_OPTIONS = ['Peraturan', 'Pedoman', 'Pemberitahuan'];
+
 function formatDate(dateString) {
   const date = new Date(dateString);
   return new Intl.DateTimeFormat('id-ID', {
@@ -12,12 +14,17 @@ function formatDate(dateString) {
   }).format(date);
 }
 
-function categoryBadgeClass(category) {
+function normalizeCategory(category) {
   const c = String(category || '').toLowerCase();
-  if (c.includes('peraturan')) return 'bg-red-100 text-red-800 ring-1 ring-inset ring-red-200 dark:bg-red-900/30 dark:text-red-300';
-  if (c.includes('pedoman')) return 'bg-green-100 text-green-800 ring-1 ring-inset ring-green-200 dark:bg-green-900/30 dark:text-green-300';
-  if (c.includes('kriteria')) return 'bg-blue-100 text-blue-800 ring-1 ring-inset ring-blue-200 dark:bg-blue-900/30 dark:text-blue-300';
-  return 'bg-gray-100 text-gray-800 ring-1 ring-inset ring-gray-200 dark:bg-gray-800 dark:text-gray-200';
+  if (c.includes('peraturan')) return 'Peraturan';
+  if (c.includes('pedoman')) return 'Pedoman';
+  return 'Pemberitahuan';
+}
+
+function categoryBadgeClass(category) {
+  if (category === 'Peraturan') return 'bg-red-100 text-red-800 ring-1 ring-inset ring-red-200 dark:bg-red-900/30 dark:text-red-300';
+  if (category === 'Pedoman') return 'bg-green-100 text-green-800 ring-1 ring-inset ring-green-200 dark:bg-green-900/30 dark:text-green-300';
+  return 'bg-yellow-100 text-yellow-800 ring-1 ring-inset ring-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300';
 }
 
 export default function UpdatePeraturanTerbaru() {
@@ -29,7 +36,7 @@ export default function UpdatePeraturanTerbaru() {
   const [notification, setNotification] = useState({ isOpen: false, type: 'error', title: '', message: '' });
   const [formData, setFormData] = useState({
     title: '',
-    category: 'Peraturan Baru',
+    category: 'Peraturan',
     type: 'text',
     content: '',
     image: null,
@@ -49,7 +56,7 @@ export default function UpdatePeraturanTerbaru() {
       const transformed = (data.updates || []).map(update => ({
         id: update.id,
         title: update.title,
-        category: update.category,
+        category: normalizeCategory(update.category),
         type: update.contentType.toLowerCase(), // TEXT -> text, IMAGE -> image
         content: update.content,
         publishedAt: update.publishedAt,
@@ -136,7 +143,7 @@ export default function UpdatePeraturanTerbaru() {
       // Reset form
       setFormData({
         title: '',
-        category: 'Peraturan Baru',
+        category: 'Peraturan',
         type: 'text',
         content: '',
         image: null,
@@ -251,10 +258,9 @@ export default function UpdatePeraturanTerbaru() {
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
               >
-                <option value="Peraturan Baru">Peraturan Baru</option>
-                <option value="Pedoman">Pedoman</option>
-                <option value="Update Kriteria">Update Kriteria</option>
-                <option value="Pemberitahuan">Pemberitahuan</option>
+                {CATEGORY_OPTIONS.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
               </select>
             </div>
 
@@ -331,7 +337,7 @@ export default function UpdatePeraturanTerbaru() {
                 setShowAddForm(false);
                 setFormData({
                   title: '',
-                  category: 'Peraturan Baru',
+                  category: 'Peraturan',
                   type: 'text',
                   content: '',
                   image: null,

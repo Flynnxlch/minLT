@@ -59,7 +59,7 @@ const menuItems = [
   },
   {
     id: 'guide',
-    label: 'Panduan',
+    label: 'Buletin',
     icon: 'bi-book',
     path: '/guide',
   },

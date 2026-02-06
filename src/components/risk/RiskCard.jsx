@@ -12,6 +12,23 @@ function truncateText(value, maxChars) {
   return `${s.slice(0, maxChars)}...`;
 }
 
+function formatDateDisplay(dateString) {
+  if (!dateString) return 'N/A';
+  try {
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(dateString)
+      ? new Date(`${dateString}T00:00:00`)
+      : new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  } catch {
+    return 'N/A';
+  }
+}
+
 /**
  * Reusable Risk Card Component
  * 
@@ -34,6 +51,7 @@ export default function RiskCard({
   showEvaluationMonth = true,
   showRiskLevelText = true, // Show risk level text below category (default: true)
   hideResidualRiskLevel = false, // Hide "Tingkat Risiko Residual" text (default: false)
+  showEstimatedExposureDate = false, // Show "Perkiraan waktu terpapar resiko" (default: false)
   riskEventMaxLength = 18,
   onRemove,
   onClick,
@@ -148,6 +166,15 @@ export default function RiskCard({
                 </div>
               ) : null;
             })()}
+
+            {showEstimatedExposureDate && (
+              <div>
+                Perkiraan waktu terpapar: {' '}
+                <span className="font-semibold text-gray-700 dark:text-gray-200">
+                  {formatDateDisplay(risk.estimatedExposureDate)}
+                </span>
+              </div>
+            )}
             
             {showEvaluationMonth && risk.evaluationMonth && (
               <div>
@@ -276,4 +303,3 @@ export default function RiskCard({
     </div>
   );
 }
-

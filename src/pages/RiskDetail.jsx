@@ -199,6 +199,7 @@ export default function RiskDetail() {
               regionCode: risk.regionCode || 'KPS',
             }}
             onSubmit={handleEditSubmit}
+            onSaveAndGoToAnalysis={(payload) => handleEditSubmit(payload, 'analysis')}
             submitLabel="Simpan Perubahan"
             simplified={true}
           />
@@ -209,6 +210,7 @@ export default function RiskDetail() {
             risk={risk}
             onSubmit={handleEditSubmit}
             onCancel={handleEditCancel}
+            onSaveAndGoToMitigation={(payload) => handleEditSubmit(payload, 'planning')}
           />
         );
       case 'planning':
@@ -312,7 +314,7 @@ export default function RiskDetail() {
             {/* Deskripsi Dampak */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Deskripsi Dampak</label>
-              <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{risk.riskImpactExplanation || 'N/A'}</p>
+              <p className="text-sm text-gray-900 dark:text-white">{risk.riskImpactExplanation || 'N/A'}</p>
             </div>
           </div>
         );
@@ -385,7 +387,7 @@ export default function RiskDetail() {
 
             {/* Bagian 2: Key Risk Indicator */}
             <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800/40">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Bagian 2: Key Risk Indicator (KRI)</h3>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Bagian 2: Key Risk Indicator</h3>
               
               <div className="space-y-4">
                 <div>
@@ -400,17 +402,17 @@ export default function RiskDetail() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Batas Aman</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Value Aman</label>
                     <p className="text-sm text-gray-900 dark:text-white">{risk.kriValueSafe || 'N/A'}</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Batas Hati-Hati</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Value Hati-Hati</label>
                     <p className="text-sm text-gray-900 dark:text-white">{risk.kriValueCaution || 'N/A'}</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Batas Bahaya</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Value Bahaya</label>
                     <p className="text-sm text-gray-900 dark:text-white">{risk.kriValueDanger || 'N/A'}</p>
                   </div>
                 </div>
@@ -863,3 +865,4 @@ export default function RiskDetail() {
     </>
   );
 }
+

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const CONTROL_EFFECTIVENESS_OPTIONS = [
-  'Cukup dan Efektif - Program yang dimiliki sudah mencakup risiko yang dimaksud dan pelaksanaannya berjalan dengan optimal',
+  'Cukup dan Efektif - Program yang dimiliki sudah mencakup risiko yang dimaksud dan pelaksanaannya  optimal',
   'Cukup dan Efektif Sebagian - Kontrol yang dimiliki sudah mencakup pengendalian risiko namun pelaksanaannya tidak konsisten dan belum optimal ',
   'Cukup dan Tidak Efektif - Kontrol yang dimiliki sudah mencakuup pengendalian risiko terkait namun tidak dilaksanakan, misal terdapat kegiatan yang tidak mengacu ke SOP',
   'Tidak Cukup dan Efektif Sebagian - Sudah ada kontrol SOP, pedoman, WI, Program yang dimiliki namun belum seluruh risiko namun pelaksanaannya cukup efektif, karena tidak cukup maka harus menambah atau merevisi pedomannya agar menjelaskan terkait risiko',

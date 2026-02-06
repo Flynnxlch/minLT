@@ -34,8 +34,6 @@ export default function RiskAnalysisForm({
   risk,
   onSubmit,
   onCancel,
-  submitLabel = 'Simpan Analisis',
-  disabled = false,
   onSaveAndGoToMitigation, // optional: simpan lalu buka tab Mitigasi (Risk Detail)
 }) {
   // Bagian 1: Kontrol yang Ada
@@ -127,13 +125,13 @@ export default function RiskAnalysisForm({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!risk || disabled) return;
+    if (!risk) return;
     onSubmit?.(buildPayload());
   };
 
   const handleSaveAndGoToMitigation = (e) => {
     e.preventDefault();
-    if (!risk || disabled) return;
+    if (!risk) return;
     onSaveAndGoToMitigation?.(buildPayload());
   };
 
@@ -289,35 +287,35 @@ export default function RiskAnalysisForm({
           {/* Value Aman, Hati-Hati, Bahaya */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="flex flex-col gap-2">
-              <label htmlFor="kri-value-safe" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Batas Aman</label>
+              <label htmlFor="kri-value-safe" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Value Aman</label>
               <input
                 id="kri-value-safe"
                 className={inputBase}
                 value={kriValueSafe}
                 onChange={(e) => setKriValueSafe(e.target.value)}
-                placeholder="Batas Nilai yang aman..."
+                placeholder="Value yang aman..."
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="kri-value-caution" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Batas Hati-Hati</label>
+              <label htmlFor="kri-value-caution" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Value Hati-Hati</label>
               <input
                 id="kri-value-caution"
                 className={inputBase}
                 value={kriValueCaution}
                 onChange={(e) => setKriValueCaution(e.target.value)}
-                placeholder="Batas Nilai yang hati-hati..."
+                placeholder="Value yang hati-hati..."
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="kri-value-danger" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Batas Bahaya</label>
+              <label htmlFor="kri-value-danger" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Value Bahaya</label>
               <input
                 id="kri-value-danger"
                 className={inputBase}
                 value={kriValueDanger}
                 onChange={(e) => setKriValueDanger(e.target.value)}
-                placeholder="Batas Nilai yang bahaya..."
+                placeholder="Value yang bahaya..."
               />
             </div>
           </div>
@@ -504,7 +502,6 @@ export default function RiskAnalysisForm({
         <button
           type="button"
           onClick={onCancel}
-          disabled={disabled}
           className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
         >
           Batal
@@ -513,7 +510,6 @@ export default function RiskAnalysisForm({
           <button
             type="button"
             onClick={handleSaveAndGoToMitigation}
-            disabled={disabled}
             className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-[#0d6efd] border border-[#0d6efd] rounded-lg bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
           >
             <i className="bi bi-shield-check mr-2" />
@@ -522,10 +518,9 @@ export default function RiskAnalysisForm({
         )}
         <button
           type="submit"
-          disabled={disabled}
           className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-white bg-[#0d6efd] rounded-lg hover:bg-blue-600 transition-colors"
         >
-          {submitLabel}
+          Simpan Evaluasi
         </button>
       </div>
     </form>

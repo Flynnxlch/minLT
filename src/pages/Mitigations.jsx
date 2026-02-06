@@ -54,6 +54,8 @@ export default function Mitigations() {
               risk={r}
               showLocation={false}
               showEvaluationMonth={false}
+              showRiskLevelText={false}
+              showEstimatedExposureDate={true}
               onClick={() => navigate(`/risks/${r.id}/mitigation-plan`)}
             />
           ))}
@@ -67,5 +69,4 @@ export default function Mitigations() {
     </>
   );
 }
-
 

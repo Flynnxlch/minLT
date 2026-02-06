@@ -136,9 +136,7 @@ export function RiskProvider({ children }) {
   // Track if initial fetch has been done to prevent multiple calls
   const hasInitialFetch = useRef(false);
 
-  // Initial fetch on mount
   // Always force refresh on initial page load to get fresh data from database
-  // This ensures browser refresh (Ctrl+R) always gets latest data
   useEffect(() => {
     // Only fetch once on initial mount
     if (!hasInitialFetch.current) {

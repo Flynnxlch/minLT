@@ -46,7 +46,6 @@ export default function RiskForm({
   compact = false,
   simplified = false, // For New Risk Entry - only show basic fields
   initial = {},
-  disabled = false,
   onSaveAndGoToAnalysis, // optional: simpan lalu buka tab Analisis (Risk Detail)
 }) {
   const { user } = useAuth();
@@ -129,7 +128,7 @@ export default function RiskForm({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!riskEvent.trim() || disabled) return;
+    if (!riskEvent.trim()) return;
     const payload = buildPayload();
     onSubmit?.(payload);
     if (compact) {
@@ -150,7 +149,7 @@ export default function RiskForm({
 
   const handleSaveAndGoToAnalysis = (e) => {
     e.preventDefault();
-    if (!riskEvent.trim() || disabled) return;
+    if (!riskEvent.trim()) return;
     onSaveAndGoToAnalysis?.(buildPayload());
   };
 
@@ -286,7 +285,6 @@ export default function RiskForm({
           <button
             type="button"
             onClick={handleSaveAndGoToAnalysis}
-            disabled={disabled}
             className="inline-flex items-center justify-center rounded-lg border border-[#0d6efd] px-4 py-2 text-sm font-semibold text-[#0d6efd] bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
           >
             <i className="bi bi-graph-up mr-2" />
@@ -295,7 +293,6 @@ export default function RiskForm({
         )}
         <button
           type="submit"
-          disabled={disabled}
           className="inline-flex items-center justify-center rounded-lg bg-[#0d6efd] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 transition-colors"
         >
           <i className="bi bi-plus-circle mr-2" />
@@ -305,3 +302,4 @@ export default function RiskForm({
     </form>
   );
 }
+
