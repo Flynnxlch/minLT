@@ -80,7 +80,7 @@ export default function RiskTrendChart({ risks = [], height = 300, period = '6mo
     return () => clearInterval(id);
   }, [period]);
 
-  const { labels, avgScore, inherentRiskRatio } = useMemo(() => {
+  const { labels, currentRiskRatio, inherentRiskRatio, residualRiskRatio } = useMemo(() => {
     const now = new Date();
     let labelsLocal = [];
     
@@ -100,7 +100,7 @@ export default function RiskTrendChart({ risks = [], height = 300, period = '6mo
       labelsLocal = [5, 4, 3, 2, 1, 0].map((n) => monthStart(n));
     }
 
-    const avg = labelsLocal.map((startDate, index) => {
+    const currentRatio = labelsLocal.map((startDate, index) => {
       let end;
       if (period === 'currentMonth') {
         // For current month mode, end is the current date/time for each day
@@ -122,16 +122,9 @@ export default function RiskTrendChart({ risks = [], height = 300, period = '6mo
         if (Number.isNaN(created.getTime())) return false;
         return created <= end;
       });
-      // Use same score priority as Dashboard: score || inherentScore || currentScore || residualScore || residualScoreFinal
-      const assessed = active.filter((r) => {
-        const score = r.score || r.inherentScore || r.currentScore || r.residualScore || r.residualScoreFinal || 0;
-        return score > 0;
-      });
+      const assessed = active.filter((r) => (r.currentScore || 0) > 0);
       if (!assessed.length) return 0;
-      const sum = assessed.reduce((acc, r) => {
-        const score = r.score || r.inherentScore || r.currentScore || r.residualScore || r.residualScoreFinal || 0;
-        return acc + score;
-      }, 0);
+      const sum = assessed.reduce((acc, r) => acc + (r.currentScore || 0), 0);
       return Math.round((sum / assessed.length) * 10) / 10;
     });
 
@@ -171,7 +164,46 @@ export default function RiskTrendChart({ risks = [], height = 300, period = '6mo
       return Math.round((sum / withInherentScore.length) * 10) / 10;
     });
 
-    return { labels: labelsLocal, avgScore: avg, inherentRiskRatio: inherentRatio };
+    // Calculate Residual Risk Ratio: average of residual score (supports legacy final field)
+    const residualRatio = labelsLocal.map((startDate, index) => {
+      let end;
+      if (period === 'currentMonth') {
+        end = new Date(startDate);
+        end.setHours(23, 59, 59, 999);
+        if (index === labelsLocal.length - 1) {
+          end = now;
+        }
+      } else {
+        const isCurrentMonth = index === labelsLocal.length - 1;
+        end = isCurrentMonth ? now : monthEnd(startDate);
+      }
+
+      const active = risks.filter((r) => {
+        const created = new Date(r.createdAt || Date.now());
+        if (Number.isNaN(created.getTime())) return false;
+        return created <= end;
+      });
+
+      const withResidualScore = active.filter((r) => {
+        const residualScore = r.residualScore || r.residualScoreFinal || 0;
+        return residualScore > 0;
+      });
+
+      if (!withResidualScore.length) return 0;
+
+      const sum = withResidualScore.reduce(
+        (acc, r) => acc + (r.residualScore || r.residualScoreFinal || 0),
+        0,
+      );
+      return Math.round((sum / withResidualScore.length) * 10) / 10;
+    });
+
+    return {
+      labels: labelsLocal,
+      currentRiskRatio: currentRatio,
+      inherentRiskRatio: inherentRatio,
+      residualRiskRatio: residualRatio,
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [risks, period, monthKey]);
 
@@ -197,11 +229,11 @@ export default function RiskTrendChart({ risks = [], height = 300, period = '6mo
         labels,
         datasets: [
           {
-            label: 'Avg risk score',
-            data: avgScore,
+            label: 'Current Risk Ratio',
+            data: currentRiskRatio,
             yAxisID: 'y',
-            borderColor: '#0d6efd',
-            backgroundColor: 'rgba(13, 110, 253, 0.10)',
+            borderColor: '#facc15',
+            backgroundColor: 'rgba(250, 204, 21, 0.10)',
             fill: true,
             tension: 0.35,
             pointRadius: 0,
@@ -218,6 +250,18 @@ export default function RiskTrendChart({ risks = [], height = 300, period = '6mo
             pointRadius: 0,
             borderWidth: 2,
             borderDash: [6, 4],
+          },
+          {
+            label: 'Residual Risk Ratio',
+            data: residualRiskRatio,
+            yAxisID: 'y',
+            borderColor: '#198754',
+            backgroundColor: 'rgba(25, 135, 84, 0.10)',
+            fill: false,
+            tension: 0.35,
+            pointRadius: 0,
+            borderWidth: 2,
+            borderDash: [4, 4],
           },
         ],
       },
@@ -289,7 +333,7 @@ export default function RiskTrendChart({ risks = [], height = 300, period = '6mo
         chartRef.current = null;
       }
     };
-  }, [labels, avgScore, inherentRiskRatio, period]);
+  }, [labels, currentRiskRatio, inherentRiskRatio, residualRiskRatio, period]);
 
   return (
     <div className="relative w-full" style={{ height }}>
@@ -297,5 +341,3 @@ export default function RiskTrendChart({ risks = [], height = 300, period = '6mo
     </div>
   );
 }
-
-

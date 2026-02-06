@@ -360,12 +360,16 @@ export default function Dashboard() {
                 </select>
                 <div className="hidden sm:flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
                   <span className="inline-flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-[#0d6efd]" />
-                    Skor rata-rata
+                    <span className="h-2 w-2 rounded-full bg-[#facc15]" />
+                    Current Risk Ratio
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-[#dc3545]" />
                     Inherent Risk Ratio
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-[#198754]" />
+                    Residual Risk Ratio
                   </span>
                 </div>
               </div>
@@ -555,4 +559,3 @@ export default function Dashboard() {
     </>
   );
 }
-
