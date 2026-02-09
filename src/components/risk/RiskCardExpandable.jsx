@@ -339,12 +339,14 @@ export default function RiskCardExpandable({
               <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
                 {risk.impactDescription && (
                   <div>
-                    <span className="font-semibold">Penjelasan Dampak:</span> {risk.impactDescription}
+                    <span className="font-semibold">Penjelasan Dampak:</span>
+                    <div className="whitespace-pre-wrap">{risk.impactDescription}</div>
                   </div>
                 )}
                 {risk.possibilityDescription && (
                   <div>
-                    <span className="font-semibold">Penjelasan Kemungkinan:</span> {risk.possibilityDescription}
+                    <span className="font-semibold">Penjelasan Kemungkinan:</span>
+                    <div className="whitespace-pre-wrap">{risk.possibilityDescription}</div>
                   </div>
                 )}
                 {(risk.score && risk.score > 0) && (
@@ -369,17 +371,20 @@ export default function RiskCardExpandable({
               <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
                 {risk.mitigationPlan && (
                   <div>
-                    <span className="font-semibold">Rencana Mitigasi:</span> {risk.mitigationPlan}
+                    <span className="font-semibold">Rencana Mitigasi:</span>
+                    <div className="whitespace-pre-wrap">{risk.mitigationPlan}</div>
                   </div>
                 )}
                 {risk.residualImpactDescription && (
                   <div>
-                    <span className="font-semibold">Dampak Residual:</span> {risk.residualImpactDescription}
+                    <span className="font-semibold">Dampak Residual:</span>
+                    <div className="whitespace-pre-wrap">{risk.residualImpactDescription}</div>
                   </div>
                 )}
                 {risk.residualProbabilityDescription && (
                   <div>
-                    <span className="font-semibold">Kemungkinan Residual:</span> {risk.residualProbabilityDescription}
+                    <span className="font-semibold">Kemungkinan Residual:</span>
+                    <div className="whitespace-pre-wrap">{risk.residualProbabilityDescription}</div>
                   </div>
                 )}
                 {risk.evaluationMonth && (

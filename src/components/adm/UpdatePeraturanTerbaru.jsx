@@ -43,33 +43,40 @@ export default function UpdatePeraturanTerbaru() {
     link: '',
   });
 
-  useEffect(() => {
-    loadUpdates();
-  }, []);
-
-  const loadUpdates = async () => {
+  const loadUpdates = async (signal) => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await apiRequest(API_ENDPOINTS.regulations.getAll);
-      // Transform data from backend format to frontend format
-      const transformed = (data.updates || []).map(update => ({
-        id: update.id,
-        title: update.title,
-        category: normalizeCategory(update.category),
-        type: update.contentType.toLowerCase(), // TEXT -> text, IMAGE -> image
-        content: update.content,
-        publishedAt: update.publishedAt,
-        link: update.link,
-      }));
+      const data = await apiRequest(API_ENDPOINTS.regulations.getAll, { signal });
+      if (signal?.aborted) return;
+      const raw = data?.updates ?? [];
+      const transformed = raw.map((update) => {
+        const contentType = update.contentType ?? update.content_type ?? 'TEXT';
+        return {
+          id: update.id,
+          title: update.title ?? '',
+          category: normalizeCategory(update.category),
+          type: String(contentType).toLowerCase(),
+          content: update.content ?? '',
+          publishedAt: update.publishedAt ?? update.published_at,
+          link: update.link ?? null,
+        };
+      });
       setUpdates(transformed);
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.error('Error loading regulation updates:', err);
-      setError(err.message || 'Gagal memuat update peraturan');
+      if (!signal?.aborted) setError(err.message || 'Gagal memuat update peraturan');
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadUpdates(controller.signal);
+    return () => controller.abort();
+  }, []);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];

@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AppWrapper } from './components/layout';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { BulletinProvider } from './context/BulletinContext';
 import { RiskProvider } from './context/RiskContext';
 import { SidebarProvider } from './context/SidebarContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -254,11 +255,13 @@ export default function App() {
       <BrowserRouter>
         <ThemeProvider>
           <AuthProvider>
-            <SidebarProvider>
-              <RiskProvider>
-                <AppRoutes />
-              </RiskProvider>
-            </SidebarProvider>
+            <BulletinProvider>
+              <SidebarProvider>
+                <RiskProvider>
+                  <AppRoutes />
+                </RiskProvider>
+              </SidebarProvider>
+            </BulletinProvider>
           </AuthProvider>
         </ThemeProvider>
       </BrowserRouter>

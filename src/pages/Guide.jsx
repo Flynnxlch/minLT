@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import ContentHeader from '../components/ui/ContentHeader';
 import { apiRequest, API_ENDPOINTS } from '../config/api';
+import { useBulletin } from '../context/BulletinContext';
 
 const CATEGORY_ORDER = ['Peraturan', 'Pedoman', 'Pemberitahuan'];
 
@@ -44,34 +45,33 @@ function categoryBadgeClass(category) {
 }
 
 export default function Guide() {
+  const { markAsRead } = useBulletin();
   const [updates, setUpdates] = useState([]);
   const [activeUpdateId, setActiveUpdateId] = useState(null);
   const [expandedCategory, setExpandedCategory] = useState('Peraturan');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    loadUpdates();
-  }, []);
-
-  const loadUpdates = async () => {
+  const loadUpdates = async (signal) => {
     try {
       setIsLoading(true);
       setError(null);
-
-      const data = await apiRequest(API_ENDPOINTS.regulations.getAll);
-      const transformed = (data?.updates || [])
+      const data = await apiRequest(API_ENDPOINTS.regulations.getAll, { signal });
+      if (signal?.aborted) return;
+      const raw = data?.updates ?? [];
+      const transformed = raw
         .map((update, index) => {
-          const publishedAt = update.publishedAt || update.published_at;
+          const publishedAt = update.publishedAt ?? update.published_at;
           const category = normalizeCategory(update.category);
+          const id = update.id ?? `${publishedAt || 'update'}-${index}`;
           return {
-            id: update.id ?? `${publishedAt || 'update'}-${index}`,
-            title: update.title,
+            id: String(id),
+            title: update.title ?? '',
             category,
-            type: String(update.contentType || update.content_type || 'text').toLowerCase(),
-            content: update.content,
+            type: String(update.contentType ?? update.content_type ?? 'text').toLowerCase(),
+            content: update.content ?? '',
             publishedAt,
-            link: update.link,
+            link: update.link ?? null,
           };
         })
         .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
@@ -86,12 +86,26 @@ export default function Guide() {
         setExpandedCategory(normalizeCategory(transformed[0].category));
       }
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.error('Error loading regulation updates:', err);
-      setError(err.message || 'Gagal memuat update');
+      if (!signal?.aborted) setError(err.message || 'Gagal memuat update');
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadUpdates(controller.signal);
+    return () => controller.abort();
+  }, []);
+
+  // Mark the currently viewed bulletin as read so notification count decreases
+  useEffect(() => {
+    if (activeUpdateId) {
+      markAsRead(activeUpdateId);
+    }
+  }, [activeUpdateId, markAsRead]);
 
   const activeUpdate = useMemo(() => {
     return updates.find((update) => update.id === activeUpdateId) || null;

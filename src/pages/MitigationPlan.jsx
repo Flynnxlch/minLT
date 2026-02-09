@@ -17,7 +17,7 @@ export default function MitigationPlan() {
   const [notification, setNotification] = useState({ isOpen: false, type: 'error', title: '', message: '', autoClose: false, autoCloseDelay: 3000 });
 
   const risk = useMemo(() => {
-    return risks.find((r) => r.id === riskId);
+    return risks.find((r) => String(r.id) === String(riskId));
   }, [risks, riskId]);
 
   const handleSubmit = async (payload) => {

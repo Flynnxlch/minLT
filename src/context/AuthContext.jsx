@@ -162,7 +162,7 @@ export function AuthProvider({ children }) {
         const looksLikeHtml = typeof text === 'string' && /^\s*</i.test(text);
         return {
           success: false,
-          error: looksLikeHtml ? apiProxyError : `Respons tidak valid (${response.status}). Tejadi Kesalahan pada Server`,
+          error: looksLikeHtml ? apiProxyError : `Respons tidak valid (${response.status}). Terjadi kesalahan pada server.`,
         };
       }
 

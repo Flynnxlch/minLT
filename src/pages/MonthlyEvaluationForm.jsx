@@ -17,7 +17,7 @@ export default function MonthlyEvaluationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const risk = useMemo(() => {
-    return risks.find((r) => r.id === riskId);
+    return risks.find((r) => String(r.id) === String(riskId));
   }, [risks, riskId]);
 
   const evaluator = user?.name || 'Current User';

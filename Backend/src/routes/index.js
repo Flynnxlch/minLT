@@ -11,6 +11,11 @@ import { getDashboardHTML } from './dashboard.js';
 export async function handleRequest(request) {
   const url = new URL(request.url);
   const path = url.pathname;
+
+  // Browsers request /favicon.ico automatically; app uses PNG icon in frontend. Return 204 to avoid 404 noise.
+  if (path === '/favicon.ico') {
+    return new Response(null, { status: 204 });
+  }
   
   // Track request for traffic monitoring (before processing)
   // We'll get user from request if available after auth

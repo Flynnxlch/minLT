@@ -35,12 +35,12 @@ export default function EditUserModal({ isOpen, onClose, user, onSuccess }) {
     [formData.regionCabang]
   );
 
-  useEffect(() => {
-    if (formData.department && !divisionOptions.includes(formData.department)) {
-      setFormData((prev) => ({ ...prev, department: '' }));
-    }
-  }, [divisionOptions, formData.department]);
-  
+  // Derive valid department: if current value is not in options (e.g. after region change), treat as empty (avoids setState in effect)
+  const effectiveDepartment =
+    formData.department && divisionOptions.includes(formData.department)
+      ? formData.department
+      : '';
+
   const canChangeRole = currentUser?.userRole === 'ADMIN_PUSAT';
 
   useEffect(() => {
@@ -145,7 +145,7 @@ export default function EditUserModal({ isOpen, onClose, user, onSuccess }) {
         nip: formData.nip?.trim() || null,
         userRole: formData.userRole || 'USER_BIASA',
         regionCabang: formData.regionCabang || 'KPS',
-        department: formData.department?.trim() || null,
+        department: effectiveDepartment?.trim() || null,
       };
 
       // Only include password if user is actively changing it
@@ -318,7 +318,7 @@ export default function EditUserModal({ isOpen, onClose, user, onSuccess }) {
                 Divisi
               </label>
               <DivisionDropdown
-                value={formData.department}
+                value={effectiveDepartment}
                 onChange={(value) => {
                   setFormData((prev) => ({ ...prev, department: value }));
                 }}

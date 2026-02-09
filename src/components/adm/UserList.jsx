@@ -32,22 +32,26 @@ export default function UserList() {
   const [deletingUser, setDeletingUser] = useState(null);
   const [notification, setNotification] = useState({ isOpen: false, type: 'error', title: '', message: '' });
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (signal) => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await apiRequest(API_ENDPOINTS.users.getAll);
+      const data = await apiRequest(API_ENDPOINTS.users.getAll, { signal });
+      if (signal?.aborted) return;
       setUsers(data.users || []);
     } catch (err) {
+      if (err.name === 'AbortError') return;
       setError(err.message || 'Gagal memuat pengguna');
       console.error('Error fetching users:', err);
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchUsers();
+    const controller = new AbortController();
+    fetchUsers(controller.signal);
+    return () => controller.abort();
   }, []);
 
   const handleEdit = (user) => {

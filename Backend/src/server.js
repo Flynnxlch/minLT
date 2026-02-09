@@ -87,9 +87,9 @@ async function handleFetch(request) {
     const response = await handleRequest(request);
     const responseTime = Date.now() - startTime;
     
-    // Log the request (skip logging for dashboard and monitoring endpoints to avoid spam)
+    // Log the request (skip logging for dashboard, monitoring, and favicon to avoid spam)
     const path = new URL(request.url).pathname;
-    if (!path.startsWith('/dashboard') && path !== '/' && !path.startsWith('/monitoring')) {
+    if (!path.startsWith('/dashboard') && path !== '/' && !path.startsWith('/monitoring') && path !== '/favicon.ico') {
       logRequest(request, response, responseTime);
     }
     

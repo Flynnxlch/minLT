@@ -29,31 +29,34 @@ export default function UserRequest({ onApprove, onReject }) {
   const [processingId, setProcessingId] = useState(null);
   const [notification, setNotification] = useState({ isOpen: false, type: 'error', title: '', message: '' });
 
-  const fetchRequests = async () => {
+  const fetchRequests = async (signal) => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await apiRequest(API_ENDPOINTS.requests.registration.getAll);
-      // Filter to only show PENDING requests (backend should already filter, but this is a safety check)
+      const data = await apiRequest(API_ENDPOINTS.requests.registration.getAll, { signal });
+      if (signal?.aborted) return;
       const pendingRequests = (data.requests || []).filter(
         req => !req.status || req.status.toLowerCase() === 'pending'
       );
       setRequests(pendingRequests);
     } catch (err) {
+      if (err.name === 'AbortError') return;
       setError(err.message || 'Gagal memuat permintaan registrasi');
       console.error('Error fetching registration requests:', err);
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRequests();
+    const controller = new AbortController();
+    fetchRequests(controller.signal);
+    return () => controller.abort();
   }, []);
 
   const handleApprove = async (requestId) => {
     if (processingId) return; // Prevent double submission
-    
+
     try {
       setProcessingId(requestId);
       await apiRequest(API_ENDPOINTS.requests.registration.approve(requestId), {
@@ -69,13 +72,14 @@ export default function UserRequest({ onApprove, onReject }) {
         title: 'Gagal Menyetujui',
         message: err.message || 'Gagal menyetujui permintaan',
       });
+    } finally {
       setProcessingId(null);
     }
   };
 
   const handleReject = async (requestId) => {
     if (processingId) return; // Prevent double submission
-    
+
     try {
       setProcessingId(requestId);
       await apiRequest(API_ENDPOINTS.requests.registration.reject(requestId), {
@@ -91,6 +95,7 @@ export default function UserRequest({ onApprove, onReject }) {
         title: 'Gagal Menolak',
         message: err.message || 'Gagal menolak permintaan',
       });
+    } finally {
       setProcessingId(null);
     }
   };

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useBulletin } from '../../context/BulletinContext';
 import { useSidebar } from '../../context/SidebarContext';
 import { RISK_LEVELS } from '../../utils/risk';
 
@@ -104,9 +105,6 @@ function MenuItem({ item, collapsed, level = 0 }) {
 
   const isDisabled = item.path === '#';
 
-  // When collapsed and active, show only icon with border that matches icon margin
-  const isCollapsedActive = collapsed && isActive && level === 0;
-  
   const linkClasses = `
     flex items-center justify-center rounded-xl text-sm font-medium transition-all duration-200 relative
     ${collapsed && level === 0 
@@ -175,7 +173,10 @@ function MenuItem({ item, collapsed, level = 0 }) {
         {item.label}
       </span>
       {item.badge && !collapsed && (
-        <span className={`${item.badge.color} text-white text-xs px-2 py-0.5 rounded-full font-semibold`}>
+        <span
+          className={`flex items-center justify-center min-w-5 h-5 rounded-full text-white text-xs font-semibold ${item.badge.color}`}
+          aria-label={`${item.badge.text} belum dibaca`}
+        >
           {item.badge.text}
         </span>
       )}
@@ -227,13 +228,24 @@ function MenuItem({ item, collapsed, level = 0 }) {
 }
 
 export default function SidebarMenu({ collapsed }) {
+  const { unreadBadgeText } = useBulletin();
+
+  const itemsWithBadge = useMemo(() => {
+    return menuItems.map((item) => {
+      if (item.id === 'guide' && unreadBadgeText) {
+        return { ...item, badge: { text: unreadBadgeText, color: 'bg-green-500' } };
+      }
+      return item;
+    });
+  }, [unreadBadgeText]);
+
   return (
     <nav className="mt-1">
       <ul className="space-y-1" role="navigation" aria-label="Main navigation">
-        {menuItems.map((item, index) => (
-          <MenuItem 
-            key={item.id || `header-${index}`} 
-            item={item} 
+        {itemsWithBadge.map((item, index) => (
+          <MenuItem
+            key={item.id || `header-${index}`}
+            item={item}
             collapsed={collapsed}
           />
         ))}

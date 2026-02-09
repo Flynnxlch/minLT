@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import RiskCardExpandable from '../components/risk/RiskCardExpandable';
 import ContentHeader from '../components/ui/ContentHeader';
@@ -43,11 +43,6 @@ export default function RiskRegister() {
     fetchRisks(false, sortBy);
   }, [sortBy, fetchRisks]);
 
-  // Reset to page 1 when filter/search/sort changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [query, levelKey, sortBy]);
-
   // Filter risks by search query and level (frontend filtering for instant results)
   // Sorting is already applied in backend, so filteredRisks maintains the sort order
   const filteredRisks = useMemo(() => {
@@ -73,27 +68,29 @@ export default function RiskRegister() {
     return Math.ceil(filteredRisks.length / RISKS_PER_PAGE);
   }, [filteredRisks.length]);
 
+  // Derive effective page: reset to 1 when filter changes, clamp to totalPages (avoids setState in effect)
+  const filterKey = `${query}-${levelKey}-${sortBy}`;
+  const prevFilterKeyRef = useRef(filterKey);
+  const filterChanged = prevFilterKeyRef.current !== filterKey;
+  if (filterChanged) prevFilterKeyRef.current = filterKey;
+  const effectivePage = filterChanged ? 1 : Math.min(Math.max(1, currentPage), totalPages || 1);
+
   // Get paginated risks (6 per page)
   const paginatedRisks = useMemo(() => {
-    const startIndex = (currentPage - 1) * RISKS_PER_PAGE;
+    const startIndex = (effectivePage - 1) * RISKS_PER_PAGE;
     const endIndex = startIndex + RISKS_PER_PAGE;
     return filteredRisks.slice(startIndex, endIndex);
-  }, [filteredRisks, currentPage]);
-
-  // Ensure currentPage is valid when filtered results change
-  useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    }
-  }, [totalPages, currentPage]);
+  }, [filteredRisks, effectivePage]);
 
 
   const handleRemoveRisk = async (riskId) => {
     setIsLoading(true);
-    // Simulate async operation with delay
-    await new Promise((resolve) => setTimeout(resolve, 280));
-    removeRisk(riskId);
-    setIsLoading(false);
+    try {
+      await removeRisk(riskId);
+      // removeRisk already refreshes risks and updates cache in RiskContext
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const inputBase =
@@ -196,8 +193,8 @@ export default function RiskRegister() {
               <div className="flex items-center gap-2">
                 {/* Previous Button */}
                 <button
-                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(Math.max(1, effectivePage - 1))}
+                  disabled={effectivePage === 1}
                   className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <i className="bi bi-chevron-left mr-1" />
@@ -211,11 +208,11 @@ export default function RiskRegister() {
                     const showPage = 
                       page === 1 ||
                       page === totalPages ||
-                      (page >= currentPage - 1 && page <= currentPage + 1);
+                      (page >= effectivePage - 1 && page <= effectivePage + 1);
                     
                     if (!showPage) {
                       // Show ellipsis
-                      if (page === currentPage - 2 || page === currentPage + 2) {
+                      if (page === effectivePage - 2 || page === effectivePage + 2) {
                         return (
                           <span key={page} className="px-2 text-gray-500 dark:text-gray-400">
                             ...
@@ -230,7 +227,7 @@ export default function RiskRegister() {
                         key={page}
                         onClick={() => setCurrentPage(page)}
                         className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                          currentPage === page
+                          effectivePage === page
                             ? 'bg-blue-600 text-white'
                             : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                         }`}
@@ -243,8 +240,8 @@ export default function RiskRegister() {
 
                 {/* Next Button */}
                 <button
-                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(Math.min(totalPages, effectivePage + 1))}
+                  disabled={effectivePage === totalPages}
                   className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Selanjutnya

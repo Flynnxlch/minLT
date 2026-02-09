@@ -3,6 +3,9 @@
  * Prevents API abuse and DDoS attacks
  */
 
+import jwt from 'jsonwebtoken';
+import { config } from '../config/index.js';
+
 // In-memory store for rate limiting (in production, use Redis)
 const rateLimitStore = new Map();
 const detectionHistory = []; // Array of detection events
@@ -33,28 +36,23 @@ function addDetectionHistory(event) {
 }
 
 /**
- * Get client identifier (IP address or user ID)
+ * Get client identifier (IP address or user ID).
+ * Uses verified JWT only (jwt.verify) so forged tokens cannot bypass rate limit per-user.
  */
 function getClientId(request) {
-  // Try to get user ID from token if available
   const authHeader = request.headers.get('Authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
-      const token = authHeader.replace('Bearer ', '');
-      // Decode without verification for rate limiting
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1]));
-        if (payload.userId) {
-          return `user:${payload.userId}`;
-        }
+      const token = authHeader.replace('Bearer ', '').trim();
+      const payload = jwt.verify(token, config.jwt.secret);
+      if (payload && payload.userId) {
+        return `user:${payload.userId}`;
       }
     } catch {
-      // Ignore token decode errors
+      // Invalid or expired token: do not trust payload, fall back to IP
     }
   }
-  
-  // Fallback to IP address
+
   const forwarded = request.headers.get('X-Forwarded-For');
   const ip = forwarded ? forwarded.split(',')[0].trim() : request.headers.get('X-Real-IP') || 'unknown';
   return `ip:${ip}`;
@@ -87,15 +85,17 @@ export function rateLimitMiddleware(request) {
   
   const clientId = getClientId(request);
   
-  // Determine rate limit config
-  let config = RATE_LIMITS.default;
-  if (path.includes('/auth/login') || path.includes('/auth/register')) {
-    config = RATE_LIMITS['/auth/login'];
-  } else if (path.includes('/auth/') || path.includes('/risks') && request.method === 'POST') {
-    config = RATE_LIMITS.strict;
+  // Determine rate limit config (register has its own limit)
+  let limitConfig = RATE_LIMITS.default;
+  if (path.includes('/auth/register')) {
+    limitConfig = RATE_LIMITS['/auth/register'];
+  } else if (path.includes('/auth/login')) {
+    limitConfig = RATE_LIMITS['/auth/login'];
+  } else if (path.includes('/auth/') || (path.includes('/risks') && request.method === 'POST')) {
+    limitConfig = RATE_LIMITS.strict;
   }
-  
-  const key = `${clientId}:${path}:${config.windowMs}`;
+
+  const key = `${clientId}:${path}:${limitConfig.windowMs}`;
   const now = Date.now();
   
   // Get or create rate limit data
@@ -105,34 +105,33 @@ export function rateLimitMiddleware(request) {
     // Reset window
     data = {
       count: 0,
-      resetTime: now + config.windowMs,
+      resetTime: now + limitConfig.windowMs,
       firstRequest: now,
     };
     rateLimitStore.set(key, data);
   }
-  
+
   // Increment request count
-  data.count++; 
-  
+  data.count++;
+
   // Check if limit exceeded
-  if (data.count > config.maxRequests) {
+  if (data.count > limitConfig.maxRequests) {
     const retryAfter = Math.ceil((data.resetTime - now) / 1000);
-    
-    // Add to detection history
+
     addDetectionHistory({
       type: 'rate_limit_exceeded',
       clientId,
       path,
       requestCount: data.count,
-      maxRequests: config.maxRequests,
-      windowMs: config.windowMs,
+      maxRequests: limitConfig.maxRequests,
+      windowMs: limitConfig.windowMs,
       retryAfter,
     });
-    
+
     return new Response(
       JSON.stringify({
         error: 'Too many requests',
-        message: `Rate limit exceeded. Maximum ${config.maxRequests} requests per ${config.windowMs / 1000} seconds.`,
+        message: `Rate limit exceeded. Maximum ${limitConfig.maxRequests} requests per ${limitConfig.windowMs / 1000} seconds.`,
         retryAfter,
       }),
       {
@@ -140,18 +139,17 @@ export function rateLimitMiddleware(request) {
         headers: {
           'Content-Type': 'application/json',
           'Retry-After': String(retryAfter),
-          'X-RateLimit-Limit': String(config.maxRequests),
+          'X-RateLimit-Limit': String(limitConfig.maxRequests),
           'X-RateLimit-Remaining': '0',
           'X-RateLimit-Reset': String(data.resetTime),
         },
       }
     );
   }
-  
-  // Add rate limit headers
+
   request.rateLimitHeaders = {
-    'X-RateLimit-Limit': String(config.maxRequests),
-    'X-RateLimit-Remaining': String(config.maxRequests - data.count),
+    'X-RateLimit-Limit': String(limitConfig.maxRequests),
+    'X-RateLimit-Remaining': String(limitConfig.maxRequests - data.count),
     'X-RateLimit-Reset': String(data.resetTime),
   };
   
@@ -276,7 +274,11 @@ export function getDetectionHistory(limit = 100) {
     totalRequests: Array.from(rateLimitStore.values()).reduce((sum, data) => sum + data.count, 0),
     activeLimits: rateLimitStore.size,
     currentLimits: Array.from(rateLimitStore.entries()).map(([key, data]) => {
-      const [clientId, path, windowMs] = key.split(':');
+      // key format: "clientId:path:windowMs" but clientId can contain ":" (e.g. "user:123", "ip:1.2.3.4")
+      const parts = key.split(':');
+      const windowMs = parts.pop();
+      const path = parts.pop();
+      const clientId = parts.join(':');
       return {
         clientId,
         path,

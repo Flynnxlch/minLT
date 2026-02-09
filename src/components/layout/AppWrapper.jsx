@@ -1,10 +1,12 @@
 import Footer from './Footer';
 import Header from './Header';
 import Sidebar from './Sidebar';
+import BulletinLoginPopup from '../ui/BulletinLoginPopup';
 
 export default function AppWrapper({ children }) {
   return (
     <div className="flex min-h-screen bg-[var(--color-body-bg)] dark:bg-[var(--color-body-bg-dark)] transition-colors duration-300">
+      <BulletinLoginPopup />
       {/* Sidebar */}
       <Sidebar />
 

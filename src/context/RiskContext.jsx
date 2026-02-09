@@ -83,57 +83,54 @@ export function RiskProvider({ children }) {
       return;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const thisSequence = ++fetchSequenceRef.current;
+
     try {
       setIsLoadingRef.current(true);
       setErrorRef.current(null);
-      
-      // Add timeout to prevent hanging
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
-      // Build URL with sorting parameter (no pagination)
+
       const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001';
       const url = new URL(API_ENDPOINTS.risks.getAll, base);
       url.searchParams.set('sortBy', sortBy);
-      
-      // Add refresh parameter to bypass cache when forceRefresh is true
-      // Also add timestamp for cache-busting to ensure browser doesn't cache the request
       if (forceRefresh) {
         url.searchParams.set('refresh', 'true');
-        url.searchParams.set('_t', Date.now().toString()); // Cache-busting timestamp
+        url.searchParams.set('_t', Date.now().toString());
       }
-      
+
       const data = await apiRequest(url.toString(), {
         method: 'GET',
         signal: controller.signal,
-        // Add cache control headers to prevent browser caching when force refresh
         cache: forceRefresh ? 'no-store' : 'default',
       });
-      
-      clearTimeout(timeoutId);
+
+      if (thisSequence !== fetchSequenceRef.current) return;
       const normalizedRisks = (data.risks || []).map(normalizeRisk);
       dispatchRef.current({ type: 'set', payload: normalizedRisks });
     } catch (err) {
-      // Handle different error types
+      if (thisSequence !== fetchSequenceRef.current) return;
       if (err.name === 'AbortError') {
         setErrorRef.current('Request timeout. Please check your connection.');
       } else if (err.message?.includes('fetch')) {
         setErrorRef.current('Unable to connect to server. Please check if the backend is running.');
       } else if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
         setErrorRef.current('Session expired. Please login again.');
-        // Clear user + token and redirect to login via AuthContext
         logout();
       } else {
         setErrorRef.current(err.message || 'Failed to fetch risks');
       }
-      
       dispatchRef.current({ type: 'set', payload: [] });
     } finally {
-      setIsLoadingRef.current(false);
+      clearTimeout(timeoutId);
+      if (thisSequence === fetchSequenceRef.current) {
+        setIsLoadingRef.current(false);
+      }
     }
   }, [logout]); // logout from AuthContext for 401 handling
 
-  // Track if initial fetch has been done to prevent multiple calls
+  // Request sequence: ignore stale responses when login/logout triggers multiple fetches
+  const fetchSequenceRef = useRef(0);
   const hasInitialFetch = useRef(false);
 
   // Always force refresh on initial page load to get fresh data from database

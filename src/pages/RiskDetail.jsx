@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { RiskForm } from '../components/form';
 import EvaluationForm from '../components/form/EvaluationForm';
@@ -33,7 +33,8 @@ export default function RiskDetail() {
   const [notification, setNotification] = useState({ isOpen: false, type: 'error', title: '', message: '' });
 
   const risk = useMemo(() => {
-    return risks.find((r) => r.id === riskId);
+    if (!riskId) return undefined;
+    return risks.find((r) => String(r.id) === String(riskId));
   }, [risks, riskId]);
 
   // Calculate risk status and available tabs (must be before early return to maintain hook order)
@@ -59,14 +60,11 @@ export default function RiskDetail() {
     });
   }, [riskStatus, hasAnalysis, hasPlanning, hasEvaluation]);
 
-  // Ensure active tab is available (moved to useEffect to avoid state update during render)
-  // This hook must be called before any early return to maintain hook order
-  // Always call this hook, but only update state if risk exists
-  useEffect(() => {
-    if (risk && availableTabs.length > 0 && !availableTabs.find((t) => t.id === activeTab)) {
-      setActiveTab('identified');
-    }
-  }, [risk, activeTab, availableTabs]);
+  // Derive effective tab: use current selection if it's available, otherwise first available tab (avoids setState in effect)
+  const effectiveActiveTab =
+    risk && availableTabs.length > 0 && availableTabs.find((t) => t.id === activeTab)
+      ? activeTab
+      : (availableTabs[0]?.id ?? 'identified');
 
   // Early return AFTER all hooks have been called
   if (!risk) {
@@ -88,7 +86,7 @@ export default function RiskDetail() {
               onClick={() => navigate('/risks')}
               className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-[#0c9361] text-white rounded-lg hover:bg-[#0a7a4f] transition-colors"
             >
-              Kembali ke Semua Risiko
+              Kembali
             </button>
           </div>
         </Card>
@@ -98,11 +96,11 @@ export default function RiskDetail() {
 
   const handleEditSubmit = async (payload, goToNextTab = null) => {
     try {
-      if (activeTab === 'identified') {
+      if (effectiveActiveTab === 'identified') {
         // Update risk basic info
         await updateRisk({ ...payload, id: risk.id });
         await refreshRisks();
-      } else if (activeTab === 'analysis') {
+      } else if (effectiveActiveTab === 'analysis') {
         // Save analysis via API
         const analysisPayload = {
           existingControl: payload.existingControl,
@@ -137,7 +135,7 @@ export default function RiskDetail() {
         
         // Refresh risks
         await refreshRisks();
-      } else if (activeTab === 'planning') {
+      } else if (effectiveActiveTab === 'planning') {
         // Save mitigation via API
         const mitigationPayload = {
           handlingType: payload.handlingType,
@@ -163,6 +161,15 @@ export default function RiskDetail() {
         
         // Refresh risks
         await refreshRisks();
+      } else if (effectiveActiveTab === 'evaluation') {
+        // Save evaluation via API
+        await apiRequest(API_ENDPOINTS.risks.evaluation(risk.id), {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        
+        // Refresh risks so All Risk list and cache are up to date
+        await refreshRisks();
       }
       
       if (goToNextTab) {
@@ -186,7 +193,7 @@ export default function RiskDetail() {
   };
 
   const renderEditForm = () => {
-    switch (activeTab) {
+    switch (effectiveActiveTab) {
       case 'identified':
         return (
           <RiskForm
@@ -237,7 +244,7 @@ export default function RiskDetail() {
   };
 
   const renderTabContent = () => {
-    switch (activeTab) {
+    switch (effectiveActiveTab) {
       case 'identified':
         return (
           <div className="space-y-4">
@@ -314,7 +321,7 @@ export default function RiskDetail() {
             {/* Deskripsi Dampak */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Deskripsi Dampak</label>
-              <p className="text-sm text-gray-900 dark:text-white">{risk.riskImpactExplanation || 'N/A'}</p>
+              <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{risk.riskImpactExplanation || 'N/A'}</p>
             </div>
           </div>
         );
@@ -716,11 +723,11 @@ export default function RiskDetail() {
             )}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Target Yang Tercapai</label>
-              <p className="text-sm text-gray-900 dark:text-white">{risk.currentImpactDescription || 'N/A'}</p>
+              <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{risk.currentImpactDescription || 'N/A'}</p>
             </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Keterangan (opsional)</label>
-                <p className="text-sm text-gray-900 dark:text-white">{risk.currentProbabilityDescription || 'N/A'}</p>
+                <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{risk.currentProbabilityDescription || 'N/A'}</p>
               </div>
             {risk.lastEvaluatedAt && (
               <div>
@@ -787,7 +794,7 @@ export default function RiskDetail() {
             type="button"
             onClick={() => setActiveTab(tab.id)}
             className={`relative px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap ${
-              activeTab === tab.id
+              effectiveActiveTab === tab.id
                 ? 'bg-white dark:bg-(--color-card-bg-dark) text-[#0c9361] border-t-2 border-[#0c9361]'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'
             }`}
@@ -795,7 +802,7 @@ export default function RiskDetail() {
             <i className={`${tab.icon} mr-1.5 sm:mr-2`}></i>
             <span className="hidden sm:inline">{tab.label}</span>
             <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
-            {activeTab === tab.id && (
+            {effectiveActiveTab === tab.id && (
               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0c9361]"></span>
             )}
           </button>
@@ -822,7 +829,7 @@ export default function RiskDetail() {
           <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 pb-4 bg-black/50 backdrop-blur-sm" onClick={() => setIsEditModalOpen(false)}>
             <div 
               className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full flex flex-col transition-all duration-300 ${
-                activeTab === 'identified' 
+                effectiveActiveTab === 'identified' 
                   ? 'max-w-2xl max-h-[calc(100vh-6rem)]' 
                   : 'max-w-3xl max-h-[calc(100vh-6rem)]'
               } ${
@@ -836,7 +843,7 @@ export default function RiskDetail() {
             >
               <div className="shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between rounded-t-lg">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Edit {availableTabs.find(t => t.id === activeTab)?.label || 'Data'}
+                  Edit {availableTabs.find(t => t.id === effectiveActiveTab)?.label || 'Data'}
                 </h2>
                 <button
                   type="button"
@@ -846,7 +853,7 @@ export default function RiskDetail() {
                   <i className="bi bi-x-lg text-xl"></i>
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto px-6 py-6 edit-modal-content" key={`${activeTab}-${risk.id}`}>
+              <div className="flex-1 overflow-y-auto px-6 py-6 edit-modal-content" key={`${effectiveActiveTab}-${risk.id}`}>
                 {renderEditForm()}
               </div>
             </div>

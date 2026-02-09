@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card } from '../widgets';
 
 // Helper function to truncate text
@@ -48,27 +48,22 @@ function typeBadgeClass(type) {
   return 'bg-gray-100 text-gray-800 ring-1 ring-inset ring-gray-200 dark:bg-gray-800 dark:text-gray-200';
 }
 
-export default function OtherRequest({ onApprove, onReject }) {
-  const [requests, setRequests] = useState([]);
-
-  useEffect(() => {
+function getInitialRequests() {
+  try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setRequests(parsed);
-          return;
-        }
-      } catch {
-        // ignore
-      }
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) return parsed;
     }
+  } catch {
+    // ignore
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(SAMPLE_OTHER_REQUESTS));
+  return SAMPLE_OTHER_REQUESTS;
+}
 
-    // Seed demo data if no storage exists
-    setRequests(SAMPLE_OTHER_REQUESTS);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(SAMPLE_OTHER_REQUESTS));
-  }, []);
+export default function OtherRequest({ onApprove, onReject }) {
+  const [requests, setRequests] = useState(getInitialRequests);
 
   const handleApprove = (requestId) => {
     const updated = requests.filter((r) => r.id !== requestId);

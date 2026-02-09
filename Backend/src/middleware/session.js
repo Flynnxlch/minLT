@@ -19,6 +19,8 @@ const MAX_CONCURRENT_LOGINS = 15;
 const MAX_DEVICES_PER_USER = 4;
 const DEVICE_WARNING_THRESHOLD = 3;
 const MAX_HISTORY_ENTRIES = 1000; // Keep last 1000 session events
+const IDLE_SESSION_MS = 30 * 60 * 1000; // 30 minutes - sessions older than this are cleaned up
+const MAX_TRAFFIC_MAP_ENTRIES = 2000; // Cap per-map size to prevent unbounded memory growth
 
 /**
  * Generate session ID from request
@@ -204,12 +206,35 @@ export function getUserActiveSessions(userId) {
 }
 
 /**
- * Cleanup expired sessions (call periodically)
+ * Cleanup idle sessions (no activity for IDLE_SESSION_MS).
+ * Called periodically to prevent unbounded session growth.
  */
 export function cleanupExpiredSessions() {
-  // In production, this would check Redis TTL or database timestamps
-  // For now, we keep sessions active until logout
-  console.log(`[Session] Active sessions: ${activeSessions.size} users`);
+  const now = Date.now();
+  const idleThreshold = now - IDLE_SESSION_MS;
+  let removed = 0;
+
+  for (const [userId, sessions] of activeSessions.entries()) {
+    const toRemove = [];
+    for (const sessionId of sessions) {
+      const details = sessionDetails.get(sessionId);
+      if (details && new Date(details.lastActivity).getTime() < idleThreshold) {
+        toRemove.push(sessionId);
+      }
+    }
+    for (const sessionId of toRemove) {
+      sessions.delete(sessionId);
+      sessionDetails.delete(sessionId);
+      removed++;
+    }
+    if (sessions.size === 0) {
+      activeSessions.delete(userId);
+    }
+  }
+
+  if (removed > 0) {
+    console.log(`[Session] Cleaned ${removed} idle session(s). Active users: ${activeSessions.size}`);
+  }
 }
 
 /**
@@ -279,43 +304,55 @@ export function getActiveSessionsDetails() {
 }
 
 /**
- * Track API request for traffic monitoring
+ * Trim a Map to maxSize by keeping entries with highest count (value).
+ * Used to cap traffic Maps and prevent unbounded memory growth.
+ */
+function trimTrafficMap(map, maxSize) {
+  if (map.size <= maxSize) return;
+  const entries = Array.from(map.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, maxSize);
+  map.clear();
+  entries.forEach(([k, v]) => map.set(k, v));
+}
+
+/**
+ * Track API request for traffic monitoring.
+ * Traffic Maps are capped at MAX_TRAFFIC_MAP_ENTRIES to prevent memory growth.
  */
 export function trackRequest(request, user = null) {
   const url = new URL(request.url);
   const endpoint = url.pathname;
   const method = request.method;
-  const ip = request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() || 
-             request.headers.get('X-Real-IP') || 
+  const ip = request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
+             request.headers.get('X-Real-IP') ||
              'unknown';
   const hour = new Date().getHours();
-  
-  // Update total requests
+
   trafficStats.totalRequests++;
-  
-  // Track by endpoint
+
   const endpointKey = `${method} ${endpoint}`;
   trafficStats.requestsByEndpoint.set(
     endpointKey,
     (trafficStats.requestsByEndpoint.get(endpointKey) || 0) + 1
   );
-  
-  // Track by user
+  trimTrafficMap(trafficStats.requestsByEndpoint, MAX_TRAFFIC_MAP_ENTRIES);
+
   if (user) {
     const userKey = `${user.id}:${user.email}`;
     trafficStats.requestsByUser.set(
       userKey,
       (trafficStats.requestsByUser.get(userKey) || 0) + 1
     );
+    trimTrafficMap(trafficStats.requestsByUser, MAX_TRAFFIC_MAP_ENTRIES);
   }
-  
-  // Track by IP
+
   trafficStats.requestsByIP.set(
     ip,
     (trafficStats.requestsByIP.get(ip) || 0) + 1
   );
-  
-  // Track by hour
+  trimTrafficMap(trafficStats.requestsByIP, MAX_TRAFFIC_MAP_ENTRIES);
+
   trafficStats.requestsByHour.set(
     hour,
     (trafficStats.requestsByHour.get(hour) || 0) + 1
@@ -334,8 +371,10 @@ export function getTrafficStats() {
   
   const requestsByUser = Array.from(trafficStats.requestsByUser.entries())
     .map(([userKey, count]) => {
-      const [userId, email] = userKey.split(':');
-      return { userId: parseInt(userId), email, count };
+      const colonIndex = userKey.indexOf(':');
+      const userId = colonIndex >= 0 ? userKey.slice(0, colonIndex) : userKey;
+      const email = colonIndex >= 0 ? userKey.slice(colonIndex + 1) : '';
+      return { userId: parseInt(userId, 10), email, count };
     })
     .sort((a, b) => b.count - a.count)
     .slice(0, 20); // Top 20 users
