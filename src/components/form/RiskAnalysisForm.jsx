@@ -6,28 +6,29 @@ import ControlEffectivenessDropdown from '../ui/ControlEffectivenessDropdown';
 import ControlLevelDropdown from '../ui/ControlLevelDropdown';
 import ControlTypeDropdown from '../ui/ControlTypeDropdown';
 
-// Format date to YYYY-MM-DD for date input
-const formatDateForInput = (dateString) => {
+const MONTH_NAMES_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+const toYearMonth = (dateString) => {
   if (!dateString) return '';
   try {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return '';
-    return date.toISOString().split('T')[0];
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
   } catch {
     return '';
   }
 };
 
-// Format date from YYYY-MM-DD to dd/mm/yyyy for display
-const formatDateForDisplay = (dateString) => {
-  if (!dateString) return '';
-  try {
-    const date = new Date(dateString + 'T00:00:00');
-    if (isNaN(date.getTime())) return '';
-    return date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  } catch {
-    return '';
-  }
+const formatExposureRangeDisplay = (startYYYYMM, endYYYYMM) => {
+  if (!startYYYYMM || !endYYYYMM) return '';
+  const [startY, startM] = startYYYYMM.split('-').map(Number);
+  const [endY, endM] = endYYYYMM.split('-').map(Number);
+  const startName = MONTH_NAMES_ID[startM - 1];
+  const endName = MONTH_NAMES_ID[endM - 1];
+  if (startY === endY) return `${startName} - ${endName} ${startY}`;
+  return `${startName} ${startY} - ${endName} ${endY}`;
 };
 
 export default function RiskAnalysisForm({
@@ -43,7 +44,8 @@ export default function RiskAnalysisForm({
   const [controlEffectivenessAssessment, setControlEffectivenessAssessment] = useState(
     risk?.controlEffectivenessAssessment || ''
   );
-  const [estimatedExposureDate, setEstimatedExposureDate] = useState(formatDateForInput(risk?.estimatedExposureDate || ''));
+  const [exposureStartMonth, setExposureStartMonth] = useState(() => toYearMonth(risk?.estimatedExposureDate || ''));
+  const [exposureEndMonth, setExposureEndMonth] = useState(() => toYearMonth(risk?.estimatedExposureEndDate || risk?.estimatedExposureDate || ''));
 
   // Bagian 2: Key Risk Indicator
   const [keyRiskIndicator, setKeyRiskIndicator] = useState(risk?.keyRiskIndicator || '');
@@ -64,7 +66,21 @@ export default function RiskAnalysisForm({
   const [residualPossibilityType, setResidualPossibilityType] = useState(risk?.residualPossibilityType || 0);
   const [residualPossibilityDescription, setResidualPossibilityDescription] = useState(risk?.residualPossibilityDescription || '');
 
-  const dateInputRef = useRef(null);
+  const exposureStartRef = useRef(null);
+  const exposureEndRef = useRef(null);
+
+  const openMonthPicker = (inputRef) => {
+    if (inputRef?.current) {
+      inputRef.current.focus();
+      try {
+        if (typeof inputRef.current.showPicker === 'function') {
+          inputRef.current.showPicker();
+        }
+      } catch {
+        // showPicker can throw if not triggered by user gesture; ignore
+      }
+    }
+  };
 
   // Calculate scores
   const inherentScore = useMemo(() => {
@@ -98,7 +114,8 @@ export default function RiskAnalysisForm({
     controlType,
     controlLevel,
     controlEffectivenessAssessment,
-    estimatedExposureDate: estimatedExposureDate || null,
+    estimatedExposureDate: exposureStartMonth ? `${exposureStartMonth}-01` : null,
+    estimatedExposureEndDate: exposureEndMonth ? `${exposureEndMonth}-01` : null,
     keyRiskIndicator,
     kriUnit,
     kriValueSafe,
@@ -210,45 +227,90 @@ export default function RiskAnalysisForm({
             />
           </div>
 
-          {/* Perkiraan waktu terpapar resiko */}
+          {/* Perkiraan waktu terpapar resiko (rentang bulan – date picker bulan/tahun) */}
           <div className="flex flex-col gap-2">
-            <label htmlFor="exposure-date" className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">
               Perkiraan waktu terpapar resiko
             </label>
-            <div className="relative">
-              <input
-                ref={dateInputRef}
-                id="exposure-date"
-                type="date"
-                className={`${inputBase} pr-10 cursor-pointer`}
-                value={estimatedExposureDate}
-                onChange={(e) => setEstimatedExposureDate(e.target.value)}
-                onClick={(e) => {
-                  e.target.showPicker?.();
-                }}
-                onFocus={(e) => {
-                  e.target.showPicker?.();
-                }}
-                style={{
-                  colorScheme: 'light dark',
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  dateInputRef.current?.showPicker?.();
-                  dateInputRef.current?.focus();
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer z-10"
-                tabIndex={-1}
-                aria-label="Buka date picker"
-              >
-                <i className="bi bi-calendar3 text-lg"></i>
-              </button>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Pilih bulan awal dan bulan akhir rentang waktu terpapar (boleh beda tahun). Klik field untuk membuka date picker.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="exposure-start-month" className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                  Bulan awal
+                </label>
+                <div className="relative">
+                  <input
+                    ref={exposureStartRef}
+                    id="exposure-start-month"
+                    type="month"
+                    className={`${inputBase} cursor-pointer pr-10`}
+                    value={exposureStartMonth}
+                    onChange={(e) => setExposureStartMonth(e.target.value)}
+                    onFocus={(e) => {
+                      try {
+                        if (typeof e.target.showPicker === 'function') e.target.showPicker();
+                      } catch { /* ignore */ }
+                    }}
+                    onClick={(e) => {
+                      try {
+                        if (typeof e.target.showPicker === 'function') e.target.showPicker();
+                      } catch { /* ignore */ }
+                    }}
+                    style={{ colorScheme: 'light dark' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => openMonthPicker(exposureStartRef)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+                    tabIndex={-1}
+                    aria-label="Buka pemilih bulan awal"
+                  >
+                    <i className="bi bi-calendar3 text-lg" aria-hidden />
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="exposure-end-month" className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                  Bulan akhir
+                </label>
+                <div className="relative">
+                  <input
+                    ref={exposureEndRef}
+                    id="exposure-end-month"
+                    type="month"
+                    className={`${inputBase} cursor-pointer pr-10`}
+                    value={exposureEndMonth}
+                    onChange={(e) => setExposureEndMonth(e.target.value)}
+                    min={exposureStartMonth || undefined}
+                    onFocus={(e) => {
+                      try {
+                        if (typeof e.target.showPicker === 'function') e.target.showPicker();
+                      } catch { /* ignore */ }
+                    }}
+                    onClick={(e) => {
+                      try {
+                        if (typeof e.target.showPicker === 'function') e.target.showPicker();
+                      } catch { /* ignore */ }
+                    }}
+                    style={{ colorScheme: 'light dark' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => openMonthPicker(exposureEndRef)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+                    tabIndex={-1}
+                    aria-label="Buka pemilih bulan akhir"
+                  >
+                    <i className="bi bi-calendar3 text-lg" aria-hidden />
+                  </button>
+                </div>
+              </div>
             </div>
-            {estimatedExposureDate && (
+            {exposureStartMonth && exposureEndMonth && (
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Dipilih: {formatDateForDisplay(estimatedExposureDate)}
+                Rentang: {formatExposureRangeDisplay(exposureStartMonth, exposureEndMonth)}
               </p>
             )}
           </div>

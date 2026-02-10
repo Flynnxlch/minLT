@@ -546,6 +546,7 @@ export default function Dashboard() {
                   showScoreBar={false}
                   showLocation={true}
                   showEvaluationMonth={true}
+                  showActionButtons={false}
                   clickable={true}
                 />
               ))}

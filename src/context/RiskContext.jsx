@@ -99,10 +99,11 @@ export function RiskProvider({ children }) {
         url.searchParams.set('_t', Date.now().toString());
       }
 
+      // Always bypass browser cache for GET risks so list reflects DB (new/deleted items)
       const data = await apiRequest(url.toString(), {
         method: 'GET',
         signal: controller.signal,
-        cache: forceRefresh ? 'no-store' : 'default',
+        cache: 'no-store',
       });
 
       if (thisSequence !== fetchSequenceRef.current) return;

@@ -38,9 +38,9 @@ export default function RiskRegister() {
     return null;
   }, [searchParams]);
 
-  // Fetch risks when sortBy changes (sorting done in backend)
+  // Always fetch fresh from database when on this page (avoid stale cache after add/delete or browser refresh)
   useEffect(() => {
-    fetchRisks(false, sortBy);
+    fetchRisks(true, sortBy);
   }, [sortBy, fetchRisks]);
 
   // Filter risks by search query and level (frontend filtering for instant results)

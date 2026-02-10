@@ -13,7 +13,7 @@ import { useRisks } from '../context/RiskContext';
 import { useSidebar } from '../context/SidebarContext';
 import { getCabangCode } from '../utils/cabang';
 import { logger } from '../utils/logger';
-import { getImpactDisplay, getPossibilityDisplay } from '../utils/riskAnalysisLabels';
+import { formatExposureRangeForDisplay, getImpactDisplay, getPossibilityDisplay } from '../utils/riskAnalysisLabels';
 import { getRiskStatus, RISK_STATUS_CONFIG } from '../utils/riskStatus';
 
 const TABS = [
@@ -108,6 +108,7 @@ export default function RiskDetail() {
           controlLevel: payload.controlLevel,
           controlEffectivenessAssessment: payload.controlEffectivenessAssessment,
           estimatedExposureDate: payload.estimatedExposureDate,
+          estimatedExposureEndDate: payload.estimatedExposureEndDate,
           keyRiskIndicator: payload.keyRiskIndicator,
           kriUnit: payload.kriUnit,
           kriValueSafe: payload.kriValueSafe,
@@ -214,6 +215,7 @@ export default function RiskDetail() {
       case 'analysis':
         return (
           <RiskAnalysisForm
+            key={`analysis-${risk?.id}-${risk?.analyzedAt ?? ''}-${risk?.estimatedExposureDate ?? ''}-${risk?.estimatedExposureEndDate ?? ''}`}
             risk={risk}
             onSubmit={handleEditSubmit}
             onCancel={handleEditCancel}
@@ -327,18 +329,6 @@ export default function RiskDetail() {
         );
 
       case 'analysis': {
-        // Format date for display
-        const formatDateDisplay = (dateString) => {
-          if (!dateString) return 'N/A';
-          try {
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return 'N/A';
-            return date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-          } catch {
-            return 'N/A';
-          }
-        };
-
         return (
           <div className="space-y-6">
             <div className="flex justify-end mb-4">
@@ -386,7 +376,7 @@ export default function RiskDetail() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Perkiraan waktu terpapar resiko</label>
                   <p className="text-sm text-gray-900 dark:text-white">
-                    {formatDateDisplay(risk.estimatedExposureDate)}
+                    {formatExposureRangeForDisplay(risk.estimatedExposureDate, risk.estimatedExposureEndDate)}
                   </p>
                 </div>
               </div>

@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { RiskAnalysisForm } from '../components/form';
 import ContentHeader from '../components/ui/ContentHeader';
 import NotificationPopup from '../components/ui/NotificationPopup';
 import { Card } from '../components/widgets';
-import { useRisks } from '../context/RiskContext';
 import { API_ENDPOINTS, apiRequest } from '../config/api';
+import { useRisks } from '../context/RiskContext';
 
 export default function InherentRiskEvaluation() {
   const { riskId } = useParams();
@@ -29,6 +29,7 @@ export default function InherentRiskEvaluation() {
         controlLevel: payload.controlLevel,
         controlEffectivenessAssessment: payload.controlEffectivenessAssessment,
         estimatedExposureDate: payload.estimatedExposureDate,
+        estimatedExposureEndDate: payload.estimatedExposureEndDate,
         keyRiskIndicator: payload.keyRiskIndicator,
         kriUnit: payload.kriUnit,
         kriValueSafe: payload.kriValueSafe,

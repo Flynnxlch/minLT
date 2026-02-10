@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getRiskLevel } from '../../utils/risk';
 import { getRiskStatus, RISK_STATUS_CONFIG } from '../../utils/riskStatus';
 import { getCabangLabel, getCabangCode } from '../../utils/cabang';
+import { formatExposureRangeForDisplay } from '../../utils/riskAnalysisLabels';
 import DeleteConfirmModal from '../ui/DeleteConfirmModal';
 import RiskLevelBadge from './RiskLevelBadge';
 import RiskScoreBar from './RiskScoreBar';
@@ -97,6 +98,11 @@ export default function RiskCardExpandable({
               {(risk.category || risk.riskCategory) && (
                 <div>
                   Kategori: <span className="font-semibold text-gray-700 dark:text-gray-200">{risk.category || risk.riskCategory}</span>
+                </div>
+              )}
+              {(risk.estimatedExposureDate || risk.estimatedExposureEndDate) && (
+                <div>
+                  Perkiraan waktu terpapar: <span className="font-semibold text-gray-700 dark:text-gray-200">{formatExposureRangeForDisplay(risk.estimatedExposureDate, risk.estimatedExposureEndDate)}</span>
                 </div>
               )}
               {/* Risk Level - only show if score > 0, status is not open-risk, and showRiskLevelText is true */}

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { getCabangLabel } from '../../utils/cabang';
 import { getRiskLevel } from '../../utils/risk';
 import { getRiskStatus, RISK_STATUS_CONFIG } from '../../utils/riskStatus';
+import { formatExposureRangeForDisplay } from '../../utils/riskAnalysisLabels';
 import RiskLevelBadge from './RiskLevelBadge';
 import RiskScoreBar from './RiskScoreBar';
 
@@ -10,23 +11,6 @@ function truncateText(value, maxChars) {
   if (!maxChars || maxChars <= 0) return s;
   if (s.length <= maxChars) return s;
   return `${s.slice(0, maxChars)}...`;
-}
-
-function formatDateDisplay(dateString) {
-  if (!dateString) return 'N/A';
-  try {
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(dateString)
-      ? new Date(`${dateString}T00:00:00`)
-      : new Date(dateString);
-    if (isNaN(date.getTime())) return 'N/A';
-    return date.toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  } catch {
-    return 'N/A';
-  }
 }
 
 /**
@@ -167,11 +151,11 @@ export default function RiskCard({
               ) : null;
             })()}
 
-            {showEstimatedExposureDate && (
+            {showEstimatedExposureDate && (risk.estimatedExposureDate || risk.estimatedExposureEndDate) && (
               <div>
                 Perkiraan waktu terpapar: {' '}
                 <span className="font-semibold text-gray-700 dark:text-gray-200">
-                  {formatDateDisplay(risk.estimatedExposureDate)}
+                  {formatExposureRangeForDisplay(risk.estimatedExposureDate, risk.estimatedExposureEndDate)}
                 </span>
               </div>
             )}

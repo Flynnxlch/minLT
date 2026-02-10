@@ -43,3 +43,32 @@ export function getPossibilityDisplay(type) {
   const label = POSSIBILITY_TYPE_LABELS[type];
   return label ? `${type} — ${label}` : 'N/A';
 }
+
+const BULAN_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+/**
+ * Format rentang exposure untuk tampilan: "Januari - Desember 2026" atau "Maret 2025 - November 2026".
+ * @param {string|Date|null} startDateISO - Tanggal/bulan awal
+ * @param {string|Date|null} endDateISO - Tanggal/bulan akhir
+ * @returns {string}
+ */
+export function formatExposureRangeForDisplay(startDateISO, endDateISO) {
+  const toDate = (v) => {
+    if (!v) return null;
+    const d = typeof v === 'string' ? new Date(v) : v;
+    return isNaN(d.getTime()) ? null : d;
+  };
+  const start = toDate(startDateISO);
+  const end = toDate(endDateISO);
+  if (!start && !end) return 'N/A';
+  const fmt = (d) => {
+    const month = BULAN_ID[d.getMonth()];
+    const year = d.getFullYear();
+    return `${month} ${year}`;
+  };
+  if (start && end) {
+    if (start.getTime() === end.getTime()) return fmt(start);
+    return `${fmt(start)} - ${fmt(end)}`;
+  }
+  return start ? fmt(start) : fmt(end);
+}
