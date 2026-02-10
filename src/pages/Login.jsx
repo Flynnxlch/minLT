@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CabangDropdown from '../components/ui/CabangDropdown';
 import ErrorModal from '../components/ui/ErrorModal';
+import { API_ENDPOINTS } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 
 // Import images
@@ -40,8 +41,14 @@ export default function Login() {
   
   // Forgot password state
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [forgotStep, setForgotStep] = useState('email'); // 'email' | 'form'
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordError, setForgotPasswordError] = useState('');
+  const [forgotPasswordNewPassword, setForgotPasswordNewPassword] = useState('');
+  const [forgotPasswordConfirmPassword, setForgotPasswordConfirmPassword] = useState('');
+  const [forgotPasswordNip, setForgotPasswordNip] = useState('');
+  const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
+  const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
   const [showForgotPasswordSuccess, setShowForgotPasswordSuccess] = useState(false);
 
   // Carousel state
@@ -213,7 +220,7 @@ export default function Login() {
     setIsRegisterMode(false);
   };
 
-  const handleForgotPasswordSubmit = async (e) => {
+  const handleForgotPasswordStep1 = async (e) => {
     e.preventDefault();
     setForgotPasswordError('');
 
@@ -228,29 +235,92 @@ export default function Login() {
     }
 
     setIsLoading(true);
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Store forgot password request
-    const forgotPasswordRequest = {
-      email: forgotPasswordEmail,
-      requestedAt: new Date().toISOString(),
-      status: 'pending',
-    };
-    const existingRequests = JSON.parse(localStorage.getItem('minlt:forgot-password-requests') || '[]');
-    existingRequests.push(forgotPasswordRequest);
-    localStorage.setItem('minlt:forgot-password-requests', JSON.stringify(existingRequests));
-
+    setForgotPasswordError('');
+    try {
+      const res = await fetch(API_ENDPOINTS.auth.forgotPasswordCheckEmail, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotPasswordEmail.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setForgotPasswordError(data.error || 'Email tidak ditemukan');
+        setIsLoading(false);
+        return;
+      }
+      if (!data.exists) {
+        setForgotPasswordError('Email Tidak Ditemukan');
+        setIsLoading(false);
+        return;
+      }
+      setForgotStep('form');
+      setForgotPasswordError('');
+    } catch {
+      setForgotPasswordError('Gagal memeriksa email. Coba lagi.');
+    }
     setIsLoading(false);
-    setShowForgotPasswordModal(false);
-    setShowForgotPasswordSuccess(true);
-    setForgotPasswordEmail('');
+  };
+
+  const handleForgotPasswordStep2 = async (e) => {
+    e.preventDefault();
+    setForgotPasswordError('');
+
+    if (!forgotPasswordNewPassword.trim()) {
+      setForgotPasswordError('Kata sandi baru wajib diisi');
+      return;
+    }
+    if (forgotPasswordNewPassword.length < 6) {
+      setForgotPasswordError('Kata sandi minimal 6 karakter');
+      return;
+    }
+    if (forgotPasswordNewPassword !== forgotPasswordConfirmPassword) {
+      setForgotPasswordError('Konfirmasi kata sandi tidak cocok');
+      return;
+    }
+    if (!forgotPasswordNip.trim()) {
+      setForgotPasswordError('NIP wajib diisi untuk konfirmasi');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch(API_ENDPOINTS.auth.forgotPasswordSubmit, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: forgotPasswordEmail.trim(),
+          newPassword: forgotPasswordNewPassword,
+          confirmPassword: forgotPasswordConfirmPassword,
+          nip: forgotPasswordNip.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setForgotPasswordError(data.error || 'Gagal mengirim permintaan');
+        setIsLoading(false);
+        return;
+      }
+      setShowForgotPasswordModal(false);
+      setShowForgotPasswordSuccess(true);
+      setForgotStep('email');
+      setForgotPasswordEmail('');
+      setForgotPasswordNewPassword('');
+      setForgotPasswordConfirmPassword('');
+      setForgotPasswordNip('');
+      setForgotPasswordError('');
+    } catch {
+      setForgotPasswordError('Gagal mengirim permintaan. Coba lagi.');
+    }
+    setIsLoading(false);
   };
 
   const handleCloseForgotPasswordModal = () => {
     setShowForgotPasswordModal(false);
+    setForgotStep('email');
     setForgotPasswordEmail('');
+    setForgotPasswordNewPassword('');
+    setForgotPasswordConfirmPassword('');
+    setForgotPasswordNip('');
     setForgotPasswordError('');
   };
 
@@ -721,63 +791,166 @@ export default function Login() {
 
                 {/* Description */}
                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-6">
-                  Jangan khawatir, hal ini bisa terjadi. Silakan masukkan alamat email yang terkait dengan akun Anda.
+                  {forgotStep === 'email'
+                    ? 'Jangan khawatir, hal ini bisa terjadi. Silakan masukkan alamat email yang terkait dengan akun Anda.'
+                    : 'Masukkan kata sandi baru dan NIP untuk konfirmasi.'}
                 </p>
 
-                {/* Form */}
-                <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
-                  {/* Email Input */}
-                  <div>
-                    <label htmlFor="forgot-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Alamat Email
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="forgot-email"
-                        type="email"
-                        value={forgotPasswordEmail}
-                        onChange={(e) => {
-                          setForgotPasswordEmail(e.target.value);
-                          setForgotPasswordError('');
-                        }}
-                        className={`w-full pl-10 pr-4 py-2.5 border rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-[#0c9361] dark:focus:ring-[#0c9361] focus:border-[#0c9361] transition-all ${
-                          forgotPasswordEmail ? 'bg-white dark:bg-gray-700/50 border-gray-200 dark:border-gray-600' : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600'
-                        } ${forgotPasswordError ? 'border-red-500 dark:border-red-500' : ''}`}
-                        placeholder="name@company.com"
-                        required
-                        autoComplete="email"
-                      />
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i className="bi bi-envelope text-gray-400 dark:text-gray-500"></i>
+                {forgotStep === 'email' ? (
+                  <form onSubmit={handleForgotPasswordStep1} className="space-y-4">
+                    <div>
+                      <label htmlFor="forgot-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Alamat Email
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="forgot-email"
+                          type="email"
+                          value={forgotPasswordEmail}
+                          onChange={(e) => {
+                            setForgotPasswordEmail(e.target.value);
+                            setForgotPasswordError('');
+                          }}
+                          className={`w-full pl-10 pr-4 py-2.5 border rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-[#0c9361] dark:focus:ring-[#0c9361] focus:border-[#0c9361] transition-all ${
+                            forgotPasswordEmail ? 'bg-white dark:bg-gray-700/50 border-gray-200 dark:border-gray-600' : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600'
+                          } ${forgotPasswordError ? 'border-red-500 dark:border-red-500' : ''}`}
+                          placeholder="name@company.com"
+                          required
+                          autoComplete="email"
+                        />
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i className="bi bi-envelope text-gray-400 dark:text-gray-500"></i>
+                        </div>
+                      </div>
+                      {forgotPasswordError && (
+                        <div className="mt-1 flex items-center gap-2 text-red-600 dark:text-red-400">
+                          <i className="bi bi-x-circle-fill text-base shrink-0"></i>
+                          <p className="text-xs">{forgotPasswordError}</p>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full py-3 px-4 bg-[#0c9361] hover:bg-[#0a7a4f] text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {isLoading ? (
+                        <>
+                          <i className="bi bi-arrow-repeat animate-spin"></i>
+                          <span>Mengecek...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Lanjutkan</span>
+                          <i className="bi bi-arrow-right"></i>
+                        </>
+                      )}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleForgotPasswordStep2} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Kata Sandi Baru</label>
+                      <div className="relative">
+                        <input
+                          type={showForgotNewPassword ? 'text' : 'password'}
+                          value={forgotPasswordNewPassword}
+                          onChange={(e) => setForgotPasswordNewPassword(e.target.value)}
+                          className="w-full pl-10 pr-12 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#0c9361] dark:focus:ring-[#0c9361] focus:border-[#0c9361] transition-colors"
+                          placeholder="••••••••"
+                          autoComplete="new-password"
+                        />
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i className="bi bi-lock text-gray-400 dark:text-gray-500"></i>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                        >
+                          <i className={`bi ${showForgotNewPassword ? 'bi-eye-slash-fill' : 'bi-eye-fill'}`}></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Konfirmasi Kata Sandi Baru</label>
+                      <div className="relative">
+                        <input
+                          type={showForgotConfirmPassword ? 'text' : 'password'}
+                          value={forgotPasswordConfirmPassword}
+                          onChange={(e) => setForgotPasswordConfirmPassword(e.target.value)}
+                          className="w-full pl-10 pr-12 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#0c9361] dark:focus:ring-[#0c9361] focus:border-[#0c9361] transition-colors"
+                          placeholder="••••••••"
+                          autoComplete="new-password"
+                        />
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i className="bi bi-lock text-gray-400 dark:text-gray-500"></i>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowForgotConfirmPassword(!showForgotConfirmPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                        >
+                          <i className={`bi ${showForgotConfirmPassword ? 'bi-eye-slash-fill' : 'bi-eye-fill'}`}></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="forgot-nip" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">NIP (konfirmasi)</label>
+                      <div className="relative">
+                        <input
+                          id="forgot-nip"
+                          type="text"
+                          value={forgotPasswordNip}
+                          onChange={(e) => setForgotPasswordNip(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#0c9361] dark:focus:ring-[#0c9361] focus:border-[#0c9361] transition-colors"
+                          placeholder="NIP Anda"
+                          autoComplete="off"
+                        />
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i className="bi bi-person-badge text-gray-400 dark:text-gray-500"></i>
+                        </div>
                       </div>
                     </div>
                     {forgotPasswordError && (
-                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">{forgotPasswordError}</p>
+                      <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                        <i className="bi bi-x-circle-fill text-base shrink-0"></i>
+                        <p className="text-xs">{forgotPasswordError}</p>
+                      </div>
                     )}
-                  </div>
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full py-3 px-4 bg-[#0c9361] hover:bg-[#0a7a4f] text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {isLoading ? (
+                        <>
+                          <i className="bi bi-arrow-repeat animate-spin"></i>
+                          <span>Mengajukan...</span>
+                        </>
+                      ) : (
+                        <span>Ajukan Permintaan</span>
+                      )}
+                    </button>
+                  </form>
+                )}
 
-                  {/* Submit Button */}
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full py-3 px-4 bg-[#0c9361] hover:bg-[#0a7a4f] text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {isLoading ? (
-                      <>
-                        <i className="bi bi-arrow-repeat animate-spin"></i>
-                        <span>Mengirim...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Kirim Tautan Reset</span>
-                        <i className="bi bi-arrow-right"></i>
-                      </>
-                    )}
-                  </button>
-                </form>
-
-                {/* Back to Login Link */}
-                <div className="mt-4 text-center">
+                {/* Back / Back to Login Link */}
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
+                  {forgotStep === 'form' && (
+                    <a
+                      href="#"
+                      className="inline-flex items-center gap-2 text-sm text-[#0c9361] dark:text-[#0c9361] hover:underline font-medium"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setForgotStep('email');
+                        setForgotPasswordError('');
+                      }}
+                    >
+                      <i className="bi bi-arrow-left"></i>
+                      <span>Kembali</span>
+                    </a>
+                  )}
                   <a
                     href="#"
                     className="inline-flex items-center gap-2 text-sm text-[#0c9361] dark:text-[#0c9361] hover:underline font-medium"

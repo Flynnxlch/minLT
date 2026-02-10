@@ -612,4 +612,122 @@ export const authController = {
       );
     }
   },
+
+  /**
+   * Check if email exists (for forgot password step 1). Public, no auth.
+   */
+  checkForgotPasswordEmail: async (request) => {
+    try {
+      const body = await request.json().catch(() => ({}));
+      const email = typeof body.email === 'string' ? body.email.trim() : '';
+      if (!email) {
+        return new Response(
+          JSON.stringify({ exists: false, error: 'Email is required' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      const user = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+      return new Response(
+        JSON.stringify({ exists: !!user }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    } catch (error) {
+      console.error('Check forgot password email error:', error);
+      return new Response(
+        JSON.stringify({ error: 'Internal server error' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+  },
+
+  /**
+   * Submit forgot password request. Public, no auth.
+   * Body: { email, newPassword, confirmPassword, nip }
+   * Creates OtherRequest type PASSWORD_RESET with detail = JSON.stringify({ newPasswordHash }).
+   */
+  submitForgotPasswordRequest: async (request) => {
+    try {
+      const body = await request.json().catch(() => ({}));
+      const { email, newPassword, confirmPassword, nip } = body;
+      const emailTrimmed = typeof email === 'string' ? email.trim() : '';
+      const nipTrimmed = typeof nip === 'string' ? nip.trim() : '';
+
+      if (!emailTrimmed) {
+        return new Response(
+          JSON.stringify({ error: 'Email wajib diisi' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (!newPassword || typeof newPassword !== 'string') {
+        return new Response(
+          JSON.stringify({ error: 'Kata sandi baru wajib diisi' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (newPassword !== confirmPassword) {
+        return new Response(
+          JSON.stringify({ error: 'Konfirmasi kata sandi tidak cocok' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (newPassword.length < 6) {
+        return new Response(
+          JSON.stringify({ error: 'Kata sandi minimal 6 karakter' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (!nipTrimmed) {
+        return new Response(
+          JSON.stringify({ error: 'NIP wajib diisi untuk konfirmasi' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { email: emailTrimmed },
+        select: { id: true, nip: true },
+      });
+      if (!user) {
+        return new Response(
+          JSON.stringify({ error: 'Email tidak ditemukan' }),
+          { status: 404, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (user.nip !== nipTrimmed) {
+        return new Response(
+          JSON.stringify({ error: 'NIP tidak sesuai dengan data kami' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const newPasswordHash = await bcrypt.hash(newPassword, 10);
+      const detail = JSON.stringify({ newPasswordHash });
+
+      const otherRequest = await prisma.otherRequest.create({
+        data: {
+          userId: user.id,
+          type: 'PASSWORD_RESET',
+          detail,
+          status: 'PENDING',
+        },
+      });
+
+      return new Response(
+        JSON.stringify({
+          message: 'Permintaan reset kata sandi berhasil dikirim. Menunggu persetujuan Admin.',
+          requestId: otherRequest.id,
+        }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } }
+      );
+    } catch (error) {
+      console.error('Submit forgot password request error:', error);
+      return new Response(
+        JSON.stringify({ error: 'Internal server error' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+  },
 };

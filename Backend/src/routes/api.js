@@ -74,6 +74,18 @@ export async function apiRoutes(request, path) {
     }
   }
 
+  if (path === '/auth/forgot-password/check-email') {
+    if (method === 'POST') {
+      return authController.checkForgotPasswordEmail(request);
+    }
+  }
+
+  if (path === '/auth/forgot-password/submit') {
+    if (method === 'POST') {
+      return authController.submitForgotPasswordRequest(request);
+    }
+  }
+
   // User management endpoints (admin only)
   if (path === '/users') {
     if (method === 'GET') {

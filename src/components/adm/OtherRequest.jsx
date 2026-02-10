@@ -1,34 +1,13 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { API_ENDPOINTS, apiRequest } from '../../config/api';
 import { Card } from '../widgets';
 
-// Helper function to truncate text
 function truncateText(value, maxChars) {
   const s = String(value ?? '');
   if (!maxChars || maxChars <= 0) return s;
   if (s.length <= maxChars) return s;
   return `${s.slice(0, maxChars)}...`;
 }
-
-const STORAGE_KEY = 'minlt:other-requests';
-
-const SAMPLE_OTHER_REQUESTS = [
-  {
-    id: 'or-1',
-    type: 'Admin Access',
-    name: 'Dimas Pratama',
-    email: 'dimas.pratama@example.com',
-    detail: 'Request role upgrade to Admin to manage risk approvals.',
-    requestedAt: '2026-01-10T09:05:00Z',
-  },
-  {
-    id: 'or-2',
-    type: 'Password Reset',
-    name: 'Siti Aisyah',
-    email: 'siti.aisyah@example.com',
-    detail: 'Forgot password and requesting reset approval.',
-    requestedAt: '2026-01-12T14:30:00Z',
-  },
-];
 
 function formatDate(dateString) {
   const date = new Date(dateString);
@@ -48,40 +27,86 @@ function typeBadgeClass(type) {
   return 'bg-gray-100 text-gray-800 ring-1 ring-inset ring-gray-200 dark:bg-gray-800 dark:text-gray-200';
 }
 
-function getInitialRequests() {
+/** Display text for detail: PASSWORD_RESET shows fixed label, else raw detail (if not JSON). */
+function getDetailDisplay(request) {
+  const t = String(request.type || '').toLowerCase();
+  if (t.includes('password')) return 'Permintaan reset kata sandi';
+  const d = request.detail;
+  if (typeof d !== 'string') return '—';
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) return parsed;
-    }
+    JSON.parse(d);
+    return '—';
   } catch {
-    // ignore
+    return d;
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(SAMPLE_OTHER_REQUESTS));
-  return SAMPLE_OTHER_REQUESTS;
 }
 
 export default function OtherRequest({ onApprove, onReject }) {
-  const [requests, setRequests] = useState(getInitialRequests);
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [processingId, setProcessingId] = useState(null);
 
-  const handleApprove = (requestId) => {
-    const updated = requests.filter((r) => r.id !== requestId);
-    setRequests(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    onApprove?.(requestId);
+  const fetchRequests = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await apiRequest(API_ENDPOINTS.requests.other.getAll);
+      setRequests(Array.isArray(data.requests) ? data.requests : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal memuat permintaan');
+      setRequests([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
+
+  const handleApprove = async (requestId) => {
+    setProcessingId(requestId);
+    try {
+      await apiRequest(API_ENDPOINTS.requests.other.approve(requestId), { method: 'POST' });
+      await fetchRequests();
+      onApprove?.(requestId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menyetujui');
+    } finally {
+      setProcessingId(null);
+    }
   };
 
-  const handleReject = (requestId) => {
-    const updated = requests.filter((r) => r.id !== requestId);
-    setRequests(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    onReject?.(requestId);
+  const handleReject = async (requestId) => {
+    setProcessingId(requestId);
+    try {
+      await apiRequest(API_ENDPOINTS.requests.other.reject(requestId), { method: 'POST' });
+      await fetchRequests();
+      onReject?.(requestId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menolak');
+    } finally {
+      setProcessingId(null);
+    }
   };
+
+  const pendingRequests = requests.filter((r) => (r.status || '').toLowerCase() === 'pending');
 
   return (
     <Card title="Permintaan Lainnya">
-      {requests.length === 0 ? (
+      {error && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+          <i className="bi bi-exclamation-circle-fill shrink-0"></i>
+          {error}
+        </div>
+      )}
+      {loading ? (
+        <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-8 flex items-center justify-center gap-2">
+          <i className="bi bi-arrow-repeat animate-spin"></i>
+          Memuat...
+        </div>
+      ) : pendingRequests.length === 0 ? (
         <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
           Tidak ada permintaan yang tertunda.
         </div>
@@ -98,50 +123,57 @@ export default function OtherRequest({ onApprove, onReject }) {
               </tr>
             </thead>
             <tbody>
-              {requests.map((request) => (
-                <tr
-                  key={request.id}
-                  className="border-b border-gray-100 dark:border-(--color-card-border-dark) hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                >
-                  <td className="py-3 px-4">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${typeBadgeClass(request.type)}`}>
-                      {request.type}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white" title={request.name}>
-                        {truncateText(request.name, 20)}
+              {pendingRequests.map((request) => {
+                const name = request.user?.name ?? '—';
+                const email = request.user?.email ?? '—';
+                const isProcessing = processingId === request.id;
+                return (
+                  <tr
+                    key={request.id}
+                    className="border-b border-gray-100 dark:border-(--color-card-border-dark) hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                  >
+                    <td className="py-3 px-4">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${typeBadgeClass(request.type)}`}>
+                        {request.type}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white" title={name}>
+                          {truncateText(name, 20)}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{email}</div>
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{request.email}</div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300">{request.detail}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300">{formatDate(request.requestedAt)}</td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleApprove(request.id)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#198754] rounded-lg hover:bg-[#157347] transition-colors shadow-sm"
-                        title="Setujui Permintaan"
-                      >
-                        <i className="bi bi-check-circle"></i>
-                        <span className="hidden sm:inline">Setujui</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleReject(request.id)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#dc3545] rounded-lg hover:bg-[#bb2d3b] transition-colors shadow-sm"
-                        title="Tolak Permintaan"
-                      >
-                        <i className="bi bi-x-circle"></i>
-                        <span className="hidden sm:inline">Tolak</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300">{getDetailDisplay(request)}</td>
+                    <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300">{formatDate(request.requestedAt)}</td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleApprove(request.id)}
+                          disabled={isProcessing}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#198754] rounded-lg hover:bg-[#157347] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Setujui Permintaan"
+                        >
+                          {isProcessing ? <i className="bi bi-arrow-repeat animate-spin"></i> : <i className="bi bi-check-circle"></i>}
+                          <span className="hidden sm:inline">Setujui</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleReject(request.id)}
+                          disabled={isProcessing}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#dc3545] rounded-lg hover:bg-[#bb2d3b] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Tolak Permintaan"
+                        >
+                          <i className="bi bi-x-circle"></i>
+                          <span className="hidden sm:inline">Tolak</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -149,5 +181,3 @@ export default function OtherRequest({ onApprove, onReject }) {
     </Card>
   );
 }
-
-

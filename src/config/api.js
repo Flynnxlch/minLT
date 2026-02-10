@@ -30,6 +30,8 @@ export const API_ENDPOINTS = {
     login: `${API_BASE_URL}/api/auth/login`,
     register: `${API_BASE_URL}/api/auth/register`,
     me: `${API_BASE_URL}/api/auth/me`,
+    forgotPasswordCheckEmail: `${API_BASE_URL}/api/auth/forgot-password/check-email`,
+    forgotPasswordSubmit: `${API_BASE_URL}/api/auth/forgot-password/submit`,
   },
   users: {
     getAll: `${API_BASE_URL}/api/users`,

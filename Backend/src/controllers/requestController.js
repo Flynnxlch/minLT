@@ -432,8 +432,19 @@ export const requestController = {
           },
         });
       } else if (otherRequest.type === 'PASSWORD_RESET') {
-        // Password reset would typically send an email with reset link
-        // For now, we just mark it as approved
+        let detailObj;
+        try {
+          detailObj = JSON.parse(otherRequest.detail || '{}');
+        } catch {
+          detailObj = {};
+        }
+        const newPasswordHash = detailObj.newPasswordHash;
+        if (newPasswordHash && typeof newPasswordHash === 'string') {
+          await prisma.user.update({
+            where: { id: otherRequest.userId },
+            data: { passwordHash: newPasswordHash },
+          });
+        }
       }
 
       await prisma.otherRequest.update({
