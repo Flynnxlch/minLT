@@ -2,6 +2,235 @@ import { prisma } from '../lib/prisma.js';
 import { clearCacheByPattern, deleteCache, getCache, setCache } from '../utils/cache.js';
 import { generateRiskId, getRiskLevel } from '../utils/risk.js';
 
+let supportsEstimatedExposureEndDate = true;
+let loggedEstimatedExposureEndDateFallback = false;
+
+const analysisSelectBase = {
+  existingControl: true,
+  controlType: true,
+  controlLevel: true,
+  controlEffectivenessAssessment: true,
+  estimatedExposureDate: true,
+  keyRiskIndicator: true,
+  kriUnit: true,
+  kriValueSafe: true,
+  kriValueCaution: true,
+  kriValueDanger: true,
+  impactDescription: true,
+  impactLevel: true,
+  possibilityType: true,
+  possibilityDescription: true,
+  inherentScore: true,
+  inherentLevel: true,
+  residualImpactDescription: true,
+  residualImpactLevel: true,
+  residualPossibilityType: true,
+  residualPossibilityDescription: true,
+  residualScore: true,
+  residualLevel: true,
+  analyzedAt: true,
+};
+
+function isEstimatedExposureEndDateUnsupportedError(error) {
+  const message = typeof error?.message === 'string' ? error.message : '';
+  const lowered = message.toLowerCase();
+  return (
+    message.includes('estimatedExposureEndDate') ||
+    message.includes('estimated_exposure_end_date') ||
+    lowered.includes('unknown arg') ||
+    lowered.includes('column') ||
+    error?.code === 'P2022'
+  );
+}
+
+function disableEstimatedExposureEndDate(context, error) {
+  supportsEstimatedExposureEndDate = false;
+  if (loggedEstimatedExposureEndDateFallback) return;
+  loggedEstimatedExposureEndDateFallback = true;
+  console.warn(`[Schema compatibility] estimatedExposureEndDate disabled in ${context}.`);
+  if (error?.message) {
+    console.warn(`[Schema compatibility] ${error.message}`);
+  }
+}
+
+function buildAnalysisSelect() {
+  if (!supportsEstimatedExposureEndDate) {
+    return { ...analysisSelectBase };
+  }
+  return {
+    ...analysisSelectBase,
+    estimatedExposureEndDate: true,
+  };
+}
+
+function buildRiskListSelect() {
+  return {
+    // Risk table fields
+    id: true,
+    userId: true,
+    riskEvent: true,
+    title: true,
+    organization: true,
+    division: true,
+    target: true,
+    riskEventDescription: true,
+    riskCause: true,
+    riskImpactExplanation: true,
+    category: true,
+    riskCategoryType: true,
+    regionCode: true,
+    evaluationRequested: true,
+    evaluationRequestedAt: true,
+    createdAt: true,
+    updatedAt: true,
+    // User relation - only needed fields
+    user: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    },
+    // Analysis relation - only fields used in response
+    analysis: {
+      select: buildAnalysisSelect(),
+    },
+    // Mitigation relation - only fields that actually exist in RiskMitigation model
+    mitigation: {
+      select: {
+        handlingType: true,
+        mitigationPlan: true,
+        mitigationOutput: true,
+        mitigationBudget: true,
+        mitigationActual: true,
+        progressMitigation: true,
+        realizationTarget: true,
+        targetKpi: true,
+        inherentScore: true,
+        // Note: residual fields (residualImpactDescription, residualScore, etc.)
+        // are NOT in RiskMitigation - they only exist in RiskAnalysis
+        // The formatting code handles this with fallbacks to analysis values
+        currentImpactDescription: true,
+        currentImpactLevel: true,
+        currentProbabilityDescription: true,
+        currentProbabilityType: true,
+        currentScore: true,
+        currentLevel: true,
+        plannedAt: true,
+      },
+    },
+    // Evaluations - only latest one, only needed fields
+    evaluations: {
+      select: {
+        evaluationStatus: true,
+        evaluationNotes: true,
+        evaluationDate: true,
+        evaluator: true,
+        evaluatorNote: true,
+        lastEvaluatedAt: true,
+        currentImpactDescription: true,
+        currentProbabilityDescription: true,
+      },
+      orderBy: { lastEvaluatedAt: 'desc' },
+      take: 1,
+    },
+  };
+}
+
+function buildRiskDetailSelect() {
+  return {
+    id: true,
+    userId: true,
+    riskEvent: true,
+    title: true,
+    organization: true,
+    division: true,
+    target: true,
+    riskEventDescription: true,
+    riskCause: true,
+    riskImpactExplanation: true,
+    category: true,
+    riskCategoryType: true,
+    regionCode: true,
+    evaluationRequested: true,
+    evaluationRequestedAt: true,
+    createdAt: true,
+    updatedAt: true,
+    analysis: {
+      select: buildAnalysisSelect(),
+    },
+    mitigation: {
+      select: {
+        handlingType: true,
+        mitigationPlan: true,
+        mitigationOutput: true,
+        mitigationBudget: true,
+        mitigationActual: true,
+        progressMitigation: true,
+        realizationTarget: true,
+        targetKpi: true,
+        inherentScore: true,
+        currentImpactDescription: true,
+        currentImpactLevel: true,
+        currentProbabilityDescription: true,
+        currentProbabilityType: true,
+        currentScore: true,
+        currentLevel: true,
+        plannedAt: true,
+      },
+    },
+    evaluations: {
+      select: {
+        id: true,
+        userId: true,
+        evaluationStatus: true,
+        evaluationNotes: true,
+        evaluationDate: true,
+        evaluator: true,
+        evaluatorNote: true,
+        lastEvaluatedAt: true,
+        currentImpactDescription: true,
+        currentProbabilityDescription: true,
+      },
+      orderBy: { lastEvaluatedAt: 'desc' },
+    },
+  };
+}
+
+function buildAnalysisPayload(fields) {
+  const payload = {
+    existingControl: fields.existingControl !== undefined && fields.existingControl !== '' ? fields.existingControl : null,
+    controlType: fields.controlType !== undefined && fields.controlType !== '' ? fields.controlType : null,
+    controlLevel: fields.controlLevel !== undefined && fields.controlLevel !== '' ? fields.controlLevel : null,
+    controlEffectivenessAssessment: fields.controlEffectivenessAssessment !== undefined && fields.controlEffectivenessAssessment !== '' ? fields.controlEffectivenessAssessment : null,
+    estimatedExposureDate: fields.estimatedExposureDate ? new Date(fields.estimatedExposureDate) : null,
+    keyRiskIndicator: fields.keyRiskIndicator || null,
+    kriUnit: fields.kriUnit || null,
+    kriValueSafe: fields.kriValueSafe || null,
+    kriValueCaution: fields.kriValueCaution || null,
+    kriValueDanger: fields.kriValueDanger || null,
+    impactDescription: fields.impactDescription || null,
+    impactLevel: fields.impactLevel !== undefined ? Number(fields.impactLevel) : null,
+    possibilityType: fields.possibilityType !== undefined ? Number(fields.possibilityType) : null,
+    possibilityDescription: fields.possibilityDescription || null,
+    inherentScore: fields.inherentScore !== null ? fields.inherentScore : null,
+    inherentLevel: fields.inherentLevel,
+    residualImpactDescription: fields.residualImpactDescription || null,
+    residualImpactLevel: fields.residualImpactLevel !== undefined ? Number(fields.residualImpactLevel) : null,
+    residualPossibilityType: fields.residualPossibilityType !== undefined ? Number(fields.residualPossibilityType) : null,
+    residualPossibilityDescription: fields.residualPossibilityDescription || null,
+    residualScore: fields.residualScore !== null ? fields.residualScore : null,
+    residualLevel: fields.residualLevel,
+    analyzedAt: new Date(),
+  };
+
+  if (supportsEstimatedExposureEndDate) {
+    payload.estimatedExposureEndDate = fields.estimatedExposureEndDate ? new Date(fields.estimatedExposureEndDate) : null;
+  }
+
+  return payload;
+}
+
 /**
  * Risk controller - handles risk-related API endpoints
  */
@@ -92,106 +321,24 @@ export const riskController = {
       }
 
       // Fetch all risks (for sorting by calculated score)
-      // OPTIMIZED: Select only needed columns to reduce payload size and query time
-      const allRisks = await prisma.risk.findMany({
-        where,
-        select: {
-          // Risk table fields
-          id: true,
-          userId: true,
-          riskEvent: true,
-          title: true,
-          organization: true,
-          division: true,
-          target: true,
-          riskEventDescription: true,
-          riskCause: true,
-          riskImpactExplanation: true,
-          category: true,
-          riskCategoryType: true,
-          regionCode: true,
-          evaluationRequested: true,
-          evaluationRequestedAt: true,
-          createdAt: true,
-          updatedAt: true,
-          // User relation - only needed fields
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          // Analysis relation - only fields used in response
-          analysis: {
-            select: {
-              existingControl: true,
-              controlType: true,
-              controlLevel: true,
-              controlEffectivenessAssessment: true,
-              estimatedExposureDate: true,
-              estimatedExposureEndDate: true,
-              keyRiskIndicator: true,
-              kriUnit: true,
-              kriValueSafe: true,
-              kriValueCaution: true,
-              kriValueDanger: true,
-              impactDescription: true,
-              impactLevel: true,
-              possibilityType: true,
-              possibilityDescription: true,
-              inherentScore: true,
-              inherentLevel: true,
-              residualImpactDescription: true,
-              residualImpactLevel: true,
-              residualPossibilityType: true,
-              residualPossibilityDescription: true,
-              residualScore: true,
-              residualLevel: true,
-              analyzedAt: true,
-            },
-          },
-          // Mitigation relation - only fields that actually exist in RiskMitigation model
-          mitigation: {
-            select: {
-              handlingType: true,
-              mitigationPlan: true,
-              mitigationOutput: true,
-              mitigationBudget: true,
-              mitigationActual: true,
-              progressMitigation: true,
-              realizationTarget: true,
-              targetKpi: true,
-              inherentScore: true,
-              // Note: residual fields (residualImpactDescription, residualScore, etc.) 
-              // are NOT in RiskMitigation - they only exist in RiskAnalysis
-              // The formatting code handles this with fallbacks to analysis values
-              currentImpactDescription: true,
-              currentImpactLevel: true,
-              currentProbabilityDescription: true,
-              currentProbabilityType: true,
-              currentScore: true,
-              currentLevel: true,
-              plannedAt: true,
-            },
-          },
-          // Evaluations - only latest one, only needed fields
-          evaluations: {
-            select: {
-              evaluationStatus: true,
-              evaluationNotes: true,
-              evaluationDate: true,
-              evaluator: true,
-              evaluatorNote: true,
-              lastEvaluatedAt: true,
-              currentImpactDescription: true,
-              currentProbabilityDescription: true,
-            },
-            orderBy: { lastEvaluatedAt: 'desc' },
-            take: 1,
-          },
-        },
-      });
+      // Use schema-compatibility fallback when estimatedExposureEndDate is unavailable
+      let allRisks;
+      try {
+        allRisks = await prisma.risk.findMany({
+          where,
+          select: buildRiskListSelect(),
+        });
+      } catch (error) {
+        if (supportsEstimatedExposureEndDate && isEstimatedExposureEndDateUnsupportedError(error)) {
+          disableEstimatedExposureEndDate('getAll', error);
+          allRisks = await prisma.risk.findMany({
+            where,
+            select: buildRiskListSelect(),
+          });
+        } else {
+          throw error;
+        }
+      }
 
       // OPTIMIZED: Combine score calculation, sorting, and formatting in one pass
       // Pre-compute title for sorting to avoid repeated calculations
@@ -425,23 +572,23 @@ export const riskController = {
         );
       }
 
-      const risk = await prisma.risk.findUnique({
-        where: { id: riskId },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          analysis: true,
-          mitigation: true,
-          evaluations: {
-            orderBy: { lastEvaluatedAt: 'desc' },
-          },
-        },
-      });
+      let risk;
+      try {
+        risk = await prisma.risk.findUnique({
+          where: { id: riskId },
+          select: buildRiskDetailSelect(),
+        });
+      } catch (error) {
+        if (supportsEstimatedExposureEndDate && isEstimatedExposureEndDateUnsupportedError(error)) {
+          disableEstimatedExposureEndDate('getById', error);
+          risk = await prisma.risk.findUnique({
+            where: { id: riskId },
+            select: buildRiskDetailSelect(),
+          });
+        } else {
+          throw error;
+        }
+      }
 
       if (!risk) {
         return new Response(
@@ -918,63 +1065,53 @@ export const riskController = {
           ? getRiskLevel(residualScore)?.label ?? null
           : null;
 
-      // Upsert analysis
-      const analysis = await prisma.riskAnalysis.upsert({
-        where: { riskId },
-        update: {
-          existingControl: existingControl !== undefined && existingControl !== '' ? existingControl : null,
-          controlType: controlType !== undefined && controlType !== '' ? controlType : null,
-          controlLevel: controlLevel !== undefined && controlLevel !== '' ? controlLevel : null,
-          controlEffectivenessAssessment: controlEffectivenessAssessment !== undefined && controlEffectivenessAssessment !== '' ? controlEffectivenessAssessment : null,
-          estimatedExposureDate: estimatedExposureDate ? new Date(estimatedExposureDate) : null,
-          estimatedExposureEndDate: estimatedExposureEndDate ? new Date(estimatedExposureEndDate) : null,
-          keyRiskIndicator: keyRiskIndicator || null,
-          kriUnit: kriUnit || null,
-          kriValueSafe: kriValueSafe || null,
-          kriValueCaution: kriValueCaution || null,
-          kriValueDanger: kriValueDanger || null,
-          impactDescription: impactDescription || null,
-          impactLevel: impactLevel !== undefined ? Number(impactLevel) : null,
-          possibilityType: possibilityType !== undefined ? Number(possibilityType) : null,
-          possibilityDescription: possibilityDescription || null,
-          inherentScore: inherentScore !== null ? inherentScore : null,
-          inherentLevel,
-          residualImpactDescription: residualImpactDescription || null,
-          residualImpactLevel: residualImpactLevel !== undefined ? Number(residualImpactLevel) : null,
-          residualPossibilityType: residualPossibilityType !== undefined ? Number(residualPossibilityType) : null,
-          residualPossibilityDescription: residualPossibilityDescription || null,
-          residualScore: residualScore !== null ? residualScore : null,
-          residualLevel,
-          analyzedAt: new Date(),
-        },
-        create: {
-          riskId,
-          existingControl: existingControl !== undefined && existingControl !== '' ? existingControl : null,
-          controlType: controlType !== undefined && controlType !== '' ? controlType : null,
-          controlLevel: controlLevel !== undefined && controlLevel !== '' ? controlLevel : null,
-          controlEffectivenessAssessment: controlEffectivenessAssessment !== undefined && controlEffectivenessAssessment !== '' ? controlEffectivenessAssessment : null,
-          estimatedExposureDate: estimatedExposureDate ? new Date(estimatedExposureDate) : null,
-          estimatedExposureEndDate: estimatedExposureEndDate ? new Date(estimatedExposureEndDate) : null,
-          keyRiskIndicator: keyRiskIndicator || null,
-          kriUnit: kriUnit || null,
-          kriValueSafe: kriValueSafe || null,
-          kriValueCaution: kriValueCaution || null,
-          kriValueDanger: kriValueDanger || null,
-          impactDescription: impactDescription || null,
-          impactLevel: impactLevel !== undefined ? Number(impactLevel) : null,
-          possibilityType: possibilityType !== undefined ? Number(possibilityType) : null,
-          possibilityDescription: possibilityDescription || null,
-          inherentScore: inherentScore !== null ? inherentScore : null,
-          inherentLevel,
-          residualImpactDescription: residualImpactDescription || null,
-          residualImpactLevel: residualImpactLevel !== undefined ? Number(residualImpactLevel) : null,
-          residualPossibilityType: residualPossibilityType !== undefined ? Number(residualPossibilityType) : null,
-          residualPossibilityDescription: residualPossibilityDescription || null,
-          residualScore: residualScore !== null ? residualScore : null,
-          residualLevel,
-          analyzedAt: new Date(),
-        },
-      });
+      const analysisFields = {
+        existingControl,
+        controlType,
+        controlLevel,
+        controlEffectivenessAssessment,
+        estimatedExposureDate,
+        estimatedExposureEndDate,
+        keyRiskIndicator,
+        kriUnit,
+        kriValueSafe,
+        kriValueCaution,
+        kriValueDanger,
+        impactDescription,
+        impactLevel,
+        possibilityType,
+        possibilityDescription,
+        inherentScore,
+        inherentLevel,
+        residualImpactDescription,
+        residualImpactLevel,
+        residualPossibilityType,
+        residualPossibilityDescription,
+        residualScore,
+        residualLevel,
+      };
+
+      const upsertAnalysis = (payload) =>
+        prisma.riskAnalysis.upsert({
+          where: { riskId },
+          update: payload,
+          create: {
+            riskId,
+            ...payload,
+          },
+        });
+
+      let analysis;
+      try {
+        analysis = await upsertAnalysis(buildAnalysisPayload(analysisFields));
+      } catch (error) {
+        if (supportsEstimatedExposureEndDate && isEstimatedExposureEndDateUnsupportedError(error)) {
+          disableEstimatedExposureEndDate('createOrUpdateAnalysis', error);
+          analysis = await upsertAnalysis(buildAnalysisPayload(analysisFields));
+        } else {
+          throw error;
+        }
+      }
 
       return new Response(
         JSON.stringify({
